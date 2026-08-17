@@ -1,4 +1,4 @@
-export type ShortcutBrand = "dynamic" | "sentinel" | "clickup" | "panel" | "cob";
+export type ShortcutBrand = "dynamic" | "sentinel" | "clickup" | "panel" | "propostas" | "cob";
 
 export type Shortcut = {
   id: string;
@@ -27,6 +27,7 @@ export const BRAND_MARK: Record<ShortcutBrand, string> = {
   sentinel: "S",
   clickup: "C",
   panel: "A",
+  propostas: "P",
   cob: "B",
 };
 
@@ -61,6 +62,15 @@ export const SHELVES: Shelf[] = [
         host: "aprovar",
         brand: "panel",
         note: "só abre com o seu link pessoal, senão dá not found",
+      },
+      {
+        id: "propostas",
+        name: "Propostas",
+        what: "Pedir proposta ao Analista, responder o preço e mandar a peça pronta pro card do CRM.",
+        url: "https://propostas.srv1807772.hstgr.cloud",
+        host: "propostas",
+        brand: "propostas",
+        note: "entra com a senha do time",
       },
       {
         id: "entregas",
