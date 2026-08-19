@@ -86,8 +86,8 @@ export async function emitirPendentes(formData: FormData) {
   const competencia = String(formData.get("competencia") ?? "") as Competencia;
   if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error("Competência inválida.");
 
-  const lote = await montarLote(competencia);
-  const pendentes = lote.filter((linha) => linha.situacao === "pendente");
+  const { linhas } = await montarLote(competencia);
+  const pendentes = linhas.filter((linha) => linha.situacao === "pendente");
 
   // Em série, de propósito: emissão fiscal com erro no meio é mais fácil de
   // entender numa fila do que em dez chamadas simultâneas.

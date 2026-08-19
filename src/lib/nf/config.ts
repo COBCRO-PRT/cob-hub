@@ -1,4 +1,5 @@
 import type { Impostos } from "./asaas";
+import type { Anexo } from "./simples";
 
 /**
  * Configuração fiscal da emissão.
@@ -85,6 +86,19 @@ export function pendenciasDaConfiguracao(): string[] {
  */
 export function simplesNacional(): boolean {
   return process.env.NF_SIMPLES_NACIONAL !== "false";
+}
+
+/**
+ * Anexo do Simples em que a COB é tributada.
+ *
+ * Publicidade cai no Anexo V por padrão e só migra para o III quando o Fator R
+ * (folha de 12 meses dividida pela receita de 12 meses) chega a 28%. A diferença
+ * entre os dois é grande, então quem confirma é o contador, não um palpite aqui.
+ * Sem NF_ANEXO_SIMPLES definido a tela não mostra estimativa nenhuma.
+ */
+export function anexoSimples(): Anexo | null {
+  const valor = process.env.NF_ANEXO_SIMPLES?.toUpperCase();
+  return valor === "III" || valor === "V" ? valor : null;
 }
 
 /** Produção emitindo nota de verdade. Serve pra tela avisar em vermelho. */

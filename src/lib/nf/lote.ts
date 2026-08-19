@@ -1,10 +1,12 @@
-import { descricaoPadrao } from "./config";
+import { anexoSimples, descricaoPadrao } from "./config";
+import { enquadrar, impostoDaNota, type Enquadramento } from "./simples";
 import {
   agendarNota,
   autorizarNota,
   buscarCliente,
   listarAssinaturasAtivas,
   listarNotas,
+  listarRecebidos,
   type Customer,
   type Impostos,
   type Invoice,
@@ -28,7 +30,30 @@ export type LinhaDoLote = {
   situacao: SituacaoLinha;
   /** O que conferir antes de emitir esta linha. Vazio quando está limpa. */
   avisos: string[];
+  /** Rateio do DAS do mês nesta nota. Null quando o anexo não foi configurado. */
+  imposto: number | null;
+  /** Valor menos o imposto rateado. Null pelo mesmo motivo. */
+  liquido: number | null;
 };
+
+export type Lote = {
+  linhas: LinhaDoLote[];
+  /** Null quando NF_ANEXO_SIMPLES não está definido: melhor sem número do que com número errado. */
+  enquadramento: Enquadramento | null;
+};
+
+/**
+ * Janela do RBT12: os 12 meses encerrados no mês anterior ao da competência.
+ * É assim que o Simples calcula, e não pelos 12 meses corridos até hoje.
+ */
+export function janelaRbt12(competencia: Competencia): { inicio: string; fim: string } {
+  const [ano, mes] = competencia.split("-").map(Number);
+  const fim = new Date(ano, mes - 1, 0);
+  const inicio = new Date(fim.getFullYear(), fim.getMonth() - 11, 1);
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { inicio: iso(inicio), fim: iso(fim) };
+}
 
 /** Exatamente 12, na ordem, porque o índice aqui é o número do mês menos um. */
 const NOMES_DE_MES = [
@@ -132,13 +157,26 @@ function situacaoDe(nota: Invoice | null): SituacaoLinha {
  * Nada é criado no Asaas aqui: esta função só lê. A nota fiscal só nasce quando
  * alguém aprova na tela, que é a trava que o processo manual não tinha.
  */
-export async function montarLote(competencia: Competencia): Promise<LinhaDoLote[]> {
+export async function montarLote(competencia: Competencia): Promise<Lote> {
   const { inicio, fim } = limitesDaCompetencia(competencia);
 
-  const [assinaturas, notasDoMes] = await Promise.all([
+  const anexo = anexoSimples();
+  const janela = janelaRbt12(competencia);
+
+  // O RBT12 só é buscado quando há anexo definido: são várias páginas de
+  // cobranças e não faz sentido pagar esse custo pra não mostrar nada.
+  const [assinaturas, notasDoMes, recebidos] = await Promise.all([
     listarAssinaturasAtivas(),
     listarNotas({ "effectiveDate[ge]": inicio, "effectiveDate[le]": fim }),
+    anexo ? listarRecebidos(janela.inicio, janela.fim) : Promise.resolve([]),
   ]);
+
+  const enquadramento = anexo
+    ? enquadrar(
+        recebidos.reduce((soma, p) => soma + (p.value ?? 0), 0),
+        anexo,
+      )
+    : null;
 
   // Só mensalidade entra no lote mensal. Anual ou semanal seguem outra régua.
   const mensais = assinaturas.filter((a) => a.cycle === "MONTHLY");
@@ -162,7 +200,7 @@ export async function montarLote(competencia: Competencia): Promise<LinhaDoLote[
     assinaturasPorCliente.set(a.customer, (assinaturasPorCliente.get(a.customer) ?? 0) + 1);
   }
 
-  return mensais.map((assinatura) => {
+  const linhas = mensais.map((assinatura) => {
     const referencia = referenciaDaNota(assinatura.id, competencia);
     const nota = porReferencia.get(referencia) ?? null;
     const { descricao, avisos } = descreverServico(assinatura.description, competencia);
@@ -179,8 +217,14 @@ export async function montarLote(competencia: Competencia): Promise<LinhaDoLote[
       nota,
       situacao: situacaoDe(nota),
       avisos,
+      imposto: enquadramento ? impostoDaNota(assinatura.value, enquadramento) : null,
+      liquido: enquadramento
+        ? assinatura.value - impostoDaNota(assinatura.value, enquadramento)
+        : null,
     };
   });
+
+  return { linhas, enquadramento };
 }
 
 export type DadosDaEmissao = {

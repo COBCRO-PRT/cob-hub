@@ -7,6 +7,7 @@ import {
   type LinhaDoLote,
   type SituacaoLinha,
 } from "@/lib/nf/lote";
+import type { Enquadramento } from "@/lib/nf/simples";
 import { cancelarLinha, emitirLinha, emitirPendentes } from "./acoes";
 
 export const metadata = {
@@ -122,6 +123,16 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
             {numero(linha.valor)}
           </div>
         )}
+
+        {linha.imposto !== null && linha.liquido !== null && (
+          <div className="mt-1.5 pr-2.5 text-right font-mono text-[10.5px] leading-relaxed tabular-nums text-zinc-600">
+            <span className="text-amber-400/60">−{numero(linha.imposto)}</span>
+            {" imposto"}
+            <br />
+            <span className="text-zinc-400">{numero(linha.liquido)}</span>
+            {" líquido"}
+          </div>
+        )}
       </td>
 
       <td className="py-3.5 pr-4 align-top">
@@ -191,11 +202,14 @@ export default async function Notas({
   const semChave = !process.env.ASAAS_API_KEY;
 
   let lote: LinhaDoLote[] = [];
+  let enquadramento: Enquadramento | null = null;
   let falha: string | null = null;
 
   if (!semChave) {
     try {
-      lote = await montarLote(competencia);
+      const resultado = await montarLote(competencia);
+      lote = resultado.linhas;
+      enquadramento = resultado.enquadramento;
     } catch (erro) {
       falha = erro instanceof Error ? erro.message : String(erro);
     }
@@ -211,6 +225,7 @@ export default async function Notas({
   const emitidas = lote.filter((l) => l.situacao === "emitida");
   const comAviso = aEmitir.filter((l) => l.avisos.length > 0);
   const total = aEmitir.reduce((soma, l) => soma + l.valor, 0);
+  const impostoDoLote = enquadramento ? total * enquadramento.aliquotaEfetiva : null;
   const producao = emProducao();
 
   return (
@@ -282,6 +297,40 @@ export default async function Notas({
               detalhe={comAviso.length ? "confira antes" : "tudo limpo"}
               tom={comAviso.length ? "atencao" : "neutro"}
             />
+            {impostoDoLote !== null && enquadramento && (
+              <Metrica
+                rotulo="Imposto estimado"
+                valor={`R$ ${numero(impostoDoLote)}`}
+                detalhe={`${(enquadramento.aliquotaEfetiva * 100).toFixed(2)}% efetivo`}
+                tom="atencao"
+              />
+            )}
+          </div>
+        )}
+
+        {enquadramento && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-lg border border-white/8 bg-white/[0.015] px-4 py-2.5 font-mono text-[11.5px] text-zinc-600">
+            <span>
+              Anexo <span className="text-zinc-300">{enquadramento.anexo}</span>, faixa{" "}
+              <span className="text-zinc-300">{enquadramento.faixa}</span>
+            </span>
+            <span>
+              RBT12 <span className="text-zinc-300">R$ {numero(enquadramento.rbt12)}</span>
+            </span>
+            <span>
+              efetiva{" "}
+              <span className="text-zinc-300">
+                {(enquadramento.aliquotaEfetiva * 100).toFixed(2)}%
+              </span>
+            </span>
+            {enquadramento.ateProximaFaixa !== null && (
+              <span>
+                faltam{" "}
+                <span className="text-zinc-300">R$ {numero(enquadramento.ateProximaFaixa)}</span>{" "}
+                pra próxima faixa
+              </span>
+            )}
+            <span className="text-zinc-700">estimativa de rateio do DAS, não apuração</span>
           </div>
         )}
 

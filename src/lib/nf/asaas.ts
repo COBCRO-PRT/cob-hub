@@ -189,6 +189,39 @@ export function buscarInformacoesFiscais(): Promise<Record<string, unknown>> {
   return request<Record<string, unknown>>("/fiscalInfo");
 }
 
+export type Payment = {
+  id: string;
+  customer: string;
+  value: number;
+  netValue: number;
+  status: string;
+  paymentDate: string | null;
+  dueDate: string;
+};
+
+/**
+ * Cobranças efetivamente recebidas na janela. É o que alimenta o RBT12.
+ *
+ * O Simples apura por competência, e aqui somamos o que entrou (regime de
+ * caixa), então o número é aproximação de gestão. Para o rateio do DAS na tela
+ * a diferença é pequena; para a apuração real quem manda é o contador.
+ */
+export async function listarRecebidos(inicio: string, fim: string): Promise<Payment[]> {
+  const status = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"];
+
+  const paginas = await Promise.all(
+    status.map((s) =>
+      listarTudo<Payment>("/payments", {
+        status: s,
+        "paymentDate[ge]": inicio,
+        "paymentDate[le]": fim,
+      }),
+    ),
+  );
+
+  return paginas.flat();
+}
+
 export function listarNotas(params: Record<string, string> = {}): Promise<Invoice[]> {
   return listarTudo<Invoice>("/invoices", params);
 }
