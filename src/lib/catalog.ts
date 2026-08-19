@@ -1,4 +1,4 @@
-export type ShortcutBrand = "dynamic" | "sentinel" | "clickup" | "panel" | "propostas" | "cob";
+export type ShortcutBrand = "dynamic" | "sentinel" | "clickup" | "panel" | "propostas" | "cob" | "financeiro";
 
 export type Shortcut = {
   id: string;
@@ -29,6 +29,7 @@ export const BRAND_MARK: Record<ShortcutBrand, string> = {
   panel: "A",
   propostas: "P",
   cob: "B",
+  financeiro: "F",
 };
 
 export const SHELVES: Shelf[] = [
@@ -94,6 +95,15 @@ export const SHELVES: Shelf[] = [
         url: "https://cob-insight-hub.vercel.app",
         host: "cob-insight-hub",
         brand: "sentinel",
+      },
+      {
+        id: "notas",
+        name: "Notas do mês",
+        what: "O lote de NF dos clientes, montado das assinaturas do Asaas. Confere e emite.",
+        url: "/financeiro/notas",
+        host: "financeiro / notas",
+        brand: "financeiro",
+        note: "pede uma segunda senha, só do financeiro",
       },
       {
         id: "torre",
