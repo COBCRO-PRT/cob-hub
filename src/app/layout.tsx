@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   title: "COB Hub — uso interno",
   description:
     "Catálogo interno de sites, ferramentas e materiais do time COB.",
+  // O hub mapeia todos os acessos internos, então fica fora de busca.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
