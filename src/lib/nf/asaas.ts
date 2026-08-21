@@ -39,6 +39,11 @@ export type Customer = {
   city: number | null;
   cityName: string | null;
   state: string | null;
+  /** A prefeitura recusa a nota sem endereço completo do tomador. */
+  postalCode: string | null;
+  address: string | null;
+  addressNumber: string | null;
+  province: string | null;
 };
 
 /** Status da nota no Asaas. SCHEDULED é o que a tela de aprovação segura. */

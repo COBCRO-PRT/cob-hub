@@ -87,7 +87,11 @@ export async function emitirPendentes(formData: FormData) {
   if (!/^\d{4}-\d{2}$/.test(competencia)) throw new Error("Competência inválida.");
 
   const { linhas } = await montarLote(competencia);
-  const pendentes = linhas.filter((linha) => linha.situacao === "pendente");
+  // Linha com cadastro incompleto nem é tentada: o Asaas cria a nota, a
+  // prefeitura recusa, e sobra lixo em SCHEDULED pra limpar depois.
+  const pendentes = linhas.filter(
+    (linha) => linha.situacao === "pendente" && linha.bloqueios.length === 0,
+  );
 
   // Em série, de propósito: emissão fiscal com erro no meio é mais fácil de
   // entender numa fila do que em dez chamadas simultâneas.

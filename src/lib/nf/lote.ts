@@ -30,6 +30,8 @@ export type LinhaDoLote = {
   situacao: SituacaoLinha;
   /** O que conferir antes de emitir esta linha. Vazio quando está limpa. */
   avisos: string[];
+  /** Cadastro do tomador incompleto trava a emissão. Vazio quando está ok. */
+  bloqueios: string[];
   /** Rateio do DAS do mês nesta nota. Null quando o anexo não foi configurado. */
   imposto: number | null;
   /** Valor menos o imposto rateado. Null pelo mesmo motivo. */
@@ -134,6 +136,30 @@ export function rotuloDaCompetencia(competencia: Competencia): string {
   return `${nomes[mes - 1]} de ${ano}`;
 }
 
+/**
+ * O que impede esta nota de sair.
+ *
+ * A prefeitura exige endereço completo do tomador, e o Asaas só devolve o erro
+ * depois de criar a nota, o que deixa lixo em SCHEDULED. Melhor conferir antes.
+ */
+function bloqueiosDoTomador(cliente: Customer | undefined): string[] {
+  if (!cliente) return ["Cliente não encontrado no Asaas"];
+
+  const faltando: string[] = [];
+  if (!cliente.cpfCnpj?.trim()) faltando.push("CNPJ");
+
+  const cep = (cliente.postalCode ?? "").replace(/\D/g, "");
+  if (!cep) faltando.push("CEP");
+  else if (cep.length !== 8) faltando.push("CEP inválido");
+
+  if (!cliente.address?.trim()) faltando.push("logradouro");
+  if (!cliente.addressNumber?.trim()) faltando.push("número");
+  if (!cliente.province?.trim()) faltando.push("bairro");
+  if (!cliente.city) faltando.push("cidade");
+
+  return faltando.length ? [`Cadastro do cliente sem ${faltando.join(", ")}`] : [];
+}
+
 function situacaoDe(nota: Invoice | null): SituacaoLinha {
   if (!nota) return "pendente";
 
@@ -205,18 +231,20 @@ export async function montarLote(competencia: Competencia): Promise<Lote> {
     const nota = porReferencia.get(referencia) ?? null;
     const { descricao, avisos } = descreverServico(assinatura.description, competencia);
 
+    const cliente = clientes.get(assinatura.customer);
     const quantas = assinaturasPorCliente.get(assinatura.customer) ?? 1;
     if (quantas > 1) avisos.push(`Este cliente tem ${quantas} assinaturas, então recebe ${quantas} notas`);
 
     return {
       assinatura,
-      cliente: clientes.get(assinatura.customer) as Customer,
+      cliente: cliente as Customer,
       referencia,
       valor: assinatura.value,
       descricao,
       nota,
       situacao: situacaoDe(nota),
       avisos,
+      bloqueios: bloqueiosDoTomador(cliente),
       imposto: enquadramento ? impostoDaNota(assinatura.value, enquadramento) : null,
       liquido: enquadramento
         ? assinatura.value - impostoDaNota(assinatura.value, enquadramento)

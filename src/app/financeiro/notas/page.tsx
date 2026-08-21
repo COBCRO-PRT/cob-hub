@@ -63,6 +63,7 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
   // O id costura os campos espalhados na linha ao mesmo form, já que <tr> não
   // pode ser embrulhado por <form> em HTML válido.
   const formId = `emitir-${linha.referencia}`;
+  const travada = linha.bloqueios.length > 0;
   const pendente = linha.situacao === "pendente";
 
   return (
@@ -74,6 +75,19 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
         <div className="mt-1 font-mono text-[10.5px] tracking-tight text-zinc-700">
           {linha.referencia}
         </div>
+        {linha.bloqueios.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {linha.bloqueios.map((bloqueio) => (
+              <span
+                key={bloqueio}
+                className="rounded border border-red-500/25 bg-red-500/[0.08] px-1.5 py-0.5 text-[11px] leading-snug text-red-400/90"
+              >
+                {bloqueio}
+              </span>
+            ))}
+          </div>
+        )}
+
         {linha.avisos.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {linha.avisos.map((aviso) => (
@@ -147,7 +161,11 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
       </td>
 
       <td className="py-3.5 pr-5 align-top text-right">
-        {pendente && (
+        {pendente && travada && (
+          <span className="font-mono text-[11px] text-red-400/70">cadastro incompleto</span>
+        )}
+
+        {pendente && !travada && (
           <form action={emitirLinha} id={formId}>
             <input type="hidden" name="clienteId" value={linha.cliente?.id ?? ""} />
             <input type="hidden" name="referencia" value={linha.referencia} />
@@ -221,7 +239,9 @@ export default async function Notas({
     (a.cliente?.name ?? "").localeCompare(b.cliente?.name ?? "", "pt-BR"),
   );
 
-  const aEmitir = lote.filter((l) => l.situacao === "pendente");
+  const pendentes = lote.filter((l) => l.situacao === "pendente");
+  const travadas = pendentes.filter((l) => l.bloqueios.length > 0);
+  const aEmitir = pendentes.filter((l) => l.bloqueios.length === 0);
   const emitidas = lote.filter((l) => l.situacao === "emitida");
   const comAviso = aEmitir.filter((l) => l.avisos.length > 0);
   const total = aEmitir.reduce((soma, l) => soma + l.valor, 0);
@@ -292,10 +312,10 @@ export default async function Notas({
               detalhe={emitidas.length ? "neste mês" : "nenhuma ainda"}
             />
             <Metrica
-              rotulo="Pedem atenção"
-              valor={String(comAviso.length)}
-              detalhe={comAviso.length ? "confira antes" : "tudo limpo"}
-              tom={comAviso.length ? "atencao" : "neutro"}
+              rotulo="Travadas"
+              valor={String(travadas.length)}
+              detalhe={travadas.length ? "cadastro incompleto" : "nenhuma"}
+              tom={travadas.length ? "atencao" : "neutro"}
             />
             {impostoDoLote !== null && enquadramento && (
               <Metrica
@@ -406,6 +426,13 @@ export default async function Notas({
                 <span className="text-amber-400/80">
                   {" · "}
                   <span className="font-mono tabular-nums">{comAviso.length}</span> com aviso
+                </span>
+              )}
+              {travadas.length > 0 && (
+                <span className="text-red-400/80">
+                  {" · "}
+                  <span className="font-mono tabular-nums">{travadas.length}</span> travadas por
+                  cadastro
                 </span>
               )}
             </p>
