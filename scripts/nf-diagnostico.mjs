@@ -56,12 +56,31 @@ console.log(`Cidade do cadastro: ${cidade}\n`);
 // 2. A emissão de nota está de pé?
 const fiscal = await pegar("/fiscalInfo");
 if (fiscal.ok && fiscal.corpo) {
+  // Nomes conferidos no payload real de GET /v3/fiscalInfo, não inventados.
   const f = fiscal.corpo;
+  const falta = [];
+  const marca = (ok) => (ok ? "ok" : "FALTA");
+
   console.log("Informações fiscais:");
-  console.log(`  emissão habilitada: ${f.serviceInvoiceEnabled ?? "(campo ausente)"}`);
-  console.log(`  município:          ${f.municipalInscription ? "inscrição " + f.municipalInscription : "sem inscrição municipal"}`);
-  console.log(`  certificado:        ${f.certificateExpirationDate ? "vence em " + f.certificateExpirationDate : "não enviado"}`);
-  if (f.simplesNacional !== undefined) console.log(`  simples nacional:   ${f.simplesNacional}`);
+  console.log(`  certificado enviado:  ${marca(f.certificateSent)}`);
+  console.log(`  inscrição municipal:  ${f.municipalInscription ?? marca(false)}`);
+  console.log(`  simples nacional:     ${f.simplesNacional ?? marca(false)}`);
+  console.log(`  item da lista (LC116):${f.serviceListItem ? " " + f.serviceListItem : " " + marca(false)}`);
+  console.log(`  série / número RPS:   ${f.rpsSerie ?? "-"} / ${f.rpsNumber ?? "-"}`);
+  console.log(`  regime especial:      ${f.specialTaxRegime ?? "-"}`);
+  console.log(`  portal nacional:      ${f.useNationalPortal}`);
+
+  if (!f.certificateSent) falta.push("enviar o certificado A1");
+  if (!f.municipalInscription) falta.push("inscrição municipal (25203)");
+  if (f.simplesNacional === null) falta.push("marcar Simples Nacional");
+  if (!f.serviceListItem) falta.push("item da lista de serviço");
+  if (!f.rpsSerie) falta.push("série do RPS (999)");
+
+  if (falta.length) {
+    console.log(`\n  PENDENTE pra emitir: ${falta.join(", ")}`);
+  } else {
+    console.log("\n  cadastro fiscal completo");
+  }
 } else {
   console.log(`Informações fiscais: HTTP ${fiscal.status} — a emissão de NF ainda não foi configurada nesta conta.`);
 }
