@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { anexoSimples, descricaoPadrao } from "./config";
 import { enquadrar, impostoDaNota, type Enquadramento } from "./simples";
 import {
@@ -43,6 +44,23 @@ export type Lote = {
   /** Null quando NF_ANEXO_SIMPLES não está definido: melhor sem número do que com número errado. */
   enquadramento: Enquadramento | null;
 };
+
+/**
+ * Soma dos recebimentos da janela, em cache.
+ *
+ * Buscar 12 meses de cobranças custava 17,5s dos 19,3s que a tela levava para
+ * abrir, e o número mal se move: é acumulado de um ano e só muda quando entra
+ * pagamento novo. Seis horas de cache tiram o gargalo sem afetar decisão
+ * nenhuma, já que ele só alimenta a estimativa de imposto.
+ */
+const somaRecebidaEmCache = unstable_cache(
+  async (inicio: string, fim: string) => {
+    const recebidos = await listarRecebidos(inicio, fim);
+    return recebidos.reduce((soma, p) => soma + (p.value ?? 0), 0);
+  },
+  ["nf-rbt12"],
+  { revalidate: 60 * 60 * 6, tags: ["nf-rbt12"] },
+);
 
 /**
  * Janela do RBT12: os 12 meses encerrados no mês anterior ao da competência.
@@ -191,18 +209,13 @@ export async function montarLote(competencia: Competencia): Promise<Lote> {
 
   // O RBT12 só é buscado quando há anexo definido: são várias páginas de
   // cobranças e não faz sentido pagar esse custo pra não mostrar nada.
-  const [assinaturas, notasDoMes, recebidos] = await Promise.all([
+  const [assinaturas, notasDoMes, rbt12] = await Promise.all([
     listarAssinaturasAtivas(),
     listarNotas({ "effectiveDate[ge]": inicio, "effectiveDate[le]": fim }),
-    anexo ? listarRecebidos(janela.inicio, janela.fim) : Promise.resolve([]),
+    anexo ? somaRecebidaEmCache(janela.inicio, janela.fim) : Promise.resolve(0),
   ]);
 
-  const enquadramento = anexo
-    ? enquadrar(
-        recebidos.reduce((soma, p) => soma + (p.value ?? 0), 0),
-        anexo,
-      )
-    : null;
+  const enquadramento = anexo ? enquadrar(rbt12, anexo) : null;
 
   // Só mensalidade entra no lote mensal. Anual ou semanal seguem outra régua.
   const mensais = assinaturas.filter((a) => a.cycle === "MONTHLY");
