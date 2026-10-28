@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowUpRight, Play, Plus, Search } from "lucide-react";
 import { Button, CONTAINER, Field, Kbd, Label, Pill, SectionTitle, Surface } from "@/components/ui";
+import { Demo } from "./Demo";
 
 export const metadata: Metadata = { title: "Design system · COB Hub" };
 
@@ -76,6 +77,8 @@ export default function DsPage() {
           <Surface glow className="p-4"><p className="type-subtitle text-fg">Com brilho</p><p className="type-body text-mute">um por tela</p></Surface>
         </div>
       </section>
+
+      <Demo />
 
       <section className="flex flex-col gap-4">
         <SectionTitle title="Pílula e tecla" />

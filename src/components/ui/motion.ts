@@ -1,10 +1,11 @@
 /** Tokens de movimento (docs/design-system.md §4.5). Uma mola, duas curvas, três durações. */
 export const spring = { type: "spring", stiffness: 380, damping: 32 } as const;
 
-export const ease = {
+type Bezier = [number, number, number, number];
+export const ease: { std: Bezier; quint: Bezier } = {
   std: [0.32, 0.72, 0, 1],
   quint: [0.22, 1, 0.36, 1],
-} as const;
+};
 
 export const dur = { fast: 0.12, base: 0.2, slow: 0.45 } as const;
 
