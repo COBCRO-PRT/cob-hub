@@ -73,7 +73,7 @@ for (const file of all) {
     for (const m of line.matchAll(/border-white\/(\[?[\d.]+\]?)/g)) { distinct.borderAlpha.add(m[1]); violations.borderAlpha.push(`${at} (${m[1]})`); }
     for (const m of line.matchAll(/bg-white\/(\[?[\d.]+\]?)/g)) { distinct.bgAlpha.add(m[1]); violations.bgAlpha.push(`${at} (${m[1]})`); }
     if (/(text|bg|border|placeholder)-zinc-\d+/.test(line)) violations.zinc.push(at);
-    if (!isUi && /(^|[\s"'`])(transition(-\w+)?|animate-\w+)/.test(line) && !/motion-safe:/.test(line)) violations.transitionUnsafe.push(at);
+    if (!isUi && /(^|[\s"'`])(transition(-\w+)?|animate-\w+)(?![=:{])/.test(line) && !/motion-safe:/.test(line)) violations.transitionUnsafe.push(at);
   });
 }
 

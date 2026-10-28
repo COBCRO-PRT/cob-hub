@@ -2,8 +2,8 @@
  * Cartão do jogador para a barra do hub: nível, XP da temporada e missões abertas.
  * Leve de propósito: lê só o store, nunca o ClickUp. Regras em docs/navegacao.md.
  */
-import { seasonTable, weekMissions } from "./jogo";
-import { SEASON, levelFor, roundOf, type Level } from "./rodada-rules";
+import { seasonTable, toneGetter, weekMissions } from "./jogo";
+import { SEASON, TEAM_GOAL, levelFor, roundOf, type Level } from "./rodada-rules";
 import { addWeeks, mondayOf } from "./score";
 import type { PlacarStore } from "./store";
 
@@ -20,6 +20,8 @@ export interface Jogador {
   week: string;
   round: number | null;
   rounds: number;
+  /** Placar do time nesta semana, só do store: verdes, carteira ativa e a meta em %. */
+  team: { green: number; total: number; goalPct: number };
 }
 
 export async function jogador(store: PlacarStore, name: string, admin: boolean): Promise<Jogador> {
@@ -35,6 +37,9 @@ export async function jogador(store: PlacarStore, name: string, admin: boolean):
   const idx = table.findIndex((l) => l.owner === name);
   const line = idx >= 0 ? table[idx] : null;
   const open = weekMissions(clients, entries, frozen, week).missions.filter((m) => !m.done);
+  const toneAt = toneGetter(entries, frozen);
+  const active = clients.filter((c) => c.active);
+  const team = { green: active.filter((c) => toneAt(c, week) === "good").length, total: active.length, goalPct: Math.round(TEAM_GOAL * 100) };
   return {
     name,
     admin,
@@ -46,5 +51,6 @@ export async function jogador(store: PlacarStore, name: string, admin: boolean):
     week,
     round: roundOf(week),
     rounds: SEASON.rounds,
+    team,
   };
 }

@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, CornerDownLeft, Search } from "lucide-react";
+import { Kbd, Label, spring } from "@/components/ui";
 import { busca, destinos, type Destino } from "@/lib/destinos";
+import { cn } from "@/lib/utils";
 import { DestinoIcon } from "./DestinoIcon";
 
 const RECENT_KEY = "cob-hub-recentes";
@@ -85,7 +87,7 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
 
   return (
     <motion.div
-      className="fixed inset-0 z-[70] flex items-start justify-center bg-black/65 px-3 pt-[10vh] backdrop-blur-sm"
+      className="fixed inset-0 z-80 flex items-start justify-center bg-bg/80 px-3 pt-[10vh] backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -95,16 +97,16 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
         role="dialog"
         aria-modal="true"
         aria-label="Ir para"
-        className="flex max-h-[72vh] w-full max-w-[600px] flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c0e11] shadow-2xl"
-        initial={reduce ? false : { y: -12, scale: 0.98 }}
-        animate={{ y: 0, scale: 1 }}
-        exit={reduce ? undefined : { y: -8, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 420, damping: 34 }}
+        className="flex max-h-[72vh] w-full max-w-[600px] flex-col overflow-hidden rounded-panel border border-line bg-surface-1 shadow-float"
+        initial={reduce ? false : { y: 16, scale: 0.98, opacity: 0 }}
+        animate={{ y: 0, scale: 1, opacity: 1 }}
+        exit={reduce ? undefined : { y: 8, opacity: 0 }}
+        transition={spring}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKey}
       >
-        <label className="flex items-center gap-3 border-b border-white/8 px-4">
-          <Search aria-hidden className="size-[18px] shrink-0 text-[#00e5ff]" />
+        <label className="flex items-center gap-3 border-b border-line px-4">
+          <Search aria-hidden className="size-[18px] shrink-0 text-accent" strokeWidth={1.75} />
           <input
             ref={input}
             value={q}
@@ -116,17 +118,19 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
             aria-label="Buscar um lugar do hub"
             aria-controls="menu-rapido-lista"
             aria-activedescendant={rows[active] ? `mr-${rows[active].d.id}` : undefined}
-            className="h-14 w-full bg-transparent text-[16px] text-white outline-none placeholder:text-zinc-500"
+            className="h-14 w-full bg-transparent text-base text-fg outline-none placeholder:text-dim"
           />
-          <kbd className="hidden rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-zinc-400 sm:block">esc</kbd>
+          <Kbd className="hidden sm:inline-flex">esc</Kbd>
         </label>
 
         <ul id="menu-rapido-lista" ref={listRef} role="listbox" className="flex-1 overflow-y-auto p-2">
-          {rows.length === 0 && <li className="px-3 py-8 text-center text-[14px] text-zinc-500">Nenhum lugar com esse nome.</li>}
+          {rows.length === 0 && <li className="px-3 py-8 text-center type-body text-dim">Nenhum lugar com esse nome.</li>}
           {rows.map((r, i) => (
             <li key={`${r.section}_${r.d.id}`} role="presentation">
               {(i === 0 || rows[i - 1].section !== r.section) && (
-                <p className="px-3 pb-1.5 pt-3 font-mono text-[10.5px] uppercase tracking-[0.14em] text-zinc-500">{r.section}</p>
+                <Label as="p" className="px-3 pt-3 pb-1.5">
+                  {r.section}
+                </Label>
               )}
               <button
                 id={`mr-${r.d.id}`}
@@ -136,34 +140,38 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
                 data-i={i}
                 onMouseMove={() => setActive(i)}
                 onClick={() => go(r.d)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${i === active ? "bg-white/[0.07]" : ""}`}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left outline-none motion-safe:transition-colors",
+                  i === active ? "border-line-strong bg-surface-2" : "border-transparent",
+                )}
               >
                 <DestinoIcon d={r.d} active={i === active} />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex items-center gap-1.5 text-[14.5px] font-semibold text-white">
+                  <span className="flex items-center gap-1.5 type-body font-semibold text-fg">
                     {r.d.name}
-                    {r.d.external && <ArrowUpRight aria-label="abre em outra aba" className="size-3.5 text-zinc-500" />}
+                    {r.d.external && <ArrowUpRight aria-label="abre em outra aba" className="size-3.5 text-dim" strokeWidth={1.75} />}
                   </span>
-                  <span className="truncate text-[12.5px] text-zinc-500">{r.d.what}</span>
+                  <span className="truncate type-caption text-dim">{r.d.what}</span>
                 </span>
-                {i === active && <CornerDownLeft aria-hidden className="size-4 shrink-0 text-[#00e5ff]" />}
+                {i === active && <CornerDownLeft aria-hidden className="size-4 shrink-0 text-accent" strokeWidth={1.75} />}
               </button>
             </li>
           ))}
         </ul>
 
-        <div className="hidden items-center gap-4 border-t border-white/8 px-4 py-2.5 font-mono text-[11px] text-zinc-500 sm:flex">
-          <span>
-            <kbd className="text-zinc-300">↑ ↓</kbd> escolher
+        <div className="hidden items-center gap-4 border-t border-line px-4 py-2.5 type-caption text-dim sm:flex">
+          <span className="inline-flex items-center gap-1.5">
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd> escolher
           </span>
-          <span>
-            <kbd className="text-zinc-300">enter</kbd> abrir
+          <span className="inline-flex items-center gap-1.5">
+            <Kbd>enter</Kbd> abrir
           </span>
-          <span>
-            <kbd className="text-zinc-300">esc</kbd> fechar
+          <span className="inline-flex items-center gap-1.5">
+            <Kbd>esc</Kbd> fechar
           </span>
-          <span className="ml-auto">
-            <kbd className="text-zinc-300">/</kbd> ou <kbd className="text-zinc-300">⌘K</kbd> abre de qualquer tela
+          <span className="ml-auto inline-flex items-center gap-1.5">
+            <Kbd>/</Kbd> ou <Kbd>⌘K</Kbd> abre de qualquer tela
           </span>
         </div>
       </motion.div>
