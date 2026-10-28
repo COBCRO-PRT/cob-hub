@@ -1,19 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Award, Play, TrendingUp } from "lucide-react";
-import { Button, CONTAINER } from "@/components/ui";
+import { AnimatePresence } from "motion/react";
+import { ArrowUpRight, Award, Play, TrendingUp } from "lucide-react";
+import { toast } from "sonner";
+import { Button, CONTAINER, Empty, Notice, Pill, Score as Ring, SectionTitle, Skeleton, Surface } from "@/components/ui";
 import { PageHeader } from "./PageHeader";
 import { LEVELS, POINTS, STREAK } from "@/lib/placar/rodada-rules";
 import type { Mission } from "@/lib/placar/jogo";
 import type { RodadaClient, RodadaTaskInfo, SemanaSnapshot } from "@/lib/placar/rodada";
 import { addWeeks, lastClosedWeek, mondayOf, weekLabel } from "@/lib/placar/score";
-import { btnGhost, btnPrimary, TONE_STYLE } from "./tones";
-import { Empty, Notice, ScoreBadge, SectionTitle } from "./semana/comum";
+import { cn } from "@/lib/utils";
+import { EXTERNAL_LINK, TONE_LABEL, closesAt, useNow } from "./semana/comum";
 import { ClientMap, Missions, PersonFilter, matches } from "./semana/Missoes";
 import { Confetti, Reveal } from "./semana/Revelacao";
-import { Conquistas, Podium, SeasonTable, SeasonTrack, TeamGoal } from "./semana/Temporada";
+import { Conquistas, SeasonTable, SeasonTrack, TeamGoal } from "./semana/Temporada";
 
 const REFRESH_MS = 60_000;
 
@@ -55,13 +56,13 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
   const [state, setState] = useState<LoadState>("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [actionMsg, setActionMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [reveal, setReveal] = useState(false);
   const [burst, setBurst] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
   const seq = useRef(0);
   const doneBefore = useRef<{ week: string; keys: Set<string> } | null>(null);
+  // Um relógio só para os prazos das tarefas.
+  const now = useNow();
 
   // A semana vem da URL (?week=) quando o link sai de uma tarefa do ClickUp.
   useEffect(() => {
@@ -92,17 +93,16 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
       }
       const snap = body as Snapshot;
 
-      // Missão que virou cumprida desde a última leitura ganha festa.
+      // Missão que virou cumprida desde a última leitura ganha festa: toast e confete por cima.
       const keys = new Set(snap.missions.filter((m) => m.done).map(missionKey));
       const before = doneBefore.current;
       if (before && before.week === snap.missionsWeek) {
         const fresh = snap.missions.filter((m) => m.done && !before.keys.has(missionKey(m)));
         if (fresh.length) {
           setBurst(Date.now());
-          setToast(
-            fresh.length === 1
-              ? `Missão cumprida: ${fresh[0].name} (+${fresh[0].points})`
-              : `${fresh.length} missões cumpridas (+${fresh.reduce((n, m) => n + m.points, 0)})`,
+          toast.success(
+            fresh.length === 1 ? "Missão cumprida" : `${fresh.length} missões cumpridas`,
+            { description: fresh.length === 1 ? `${fresh[0].name} (+${fresh[0].points})` : `+${fresh.reduce((n, m) => n + m.points, 0)} pontos`, duration: 6000 },
           );
         }
       }
@@ -137,15 +137,8 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
     if (id) setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 50);
   }, [data]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 6000);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   async function post(path: string, payload: unknown, key: string, ok: (b: Record<string, unknown>) => string, after?: () => void) {
     setBusy(key);
-    setActionMsg(null);
     try {
       const res = await fetch(path, {
         method: "POST",
@@ -154,12 +147,12 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
       });
       const b = await res.json().catch(() => null);
       const good = res.ok && b?.ok;
-      if (!good) setActionMsg({ tone: "bad", text: b?.error ?? `O servidor respondeu ${res.status}.` });
-      else setActionMsg({ tone: "ok", text: ok(b) });
+      if (!good) toast.error("Não deu para concluir", { description: b?.error ?? `O servidor respondeu ${res.status}.` });
+      else toast.success(ok(b));
       await load();
       if (good) after?.();
     } catch {
-      setActionMsg({ tone: "bad", text: "Sem conexão com o servidor." });
+      toast.error("Sem conexão com o servidor.");
     } finally {
       setBusy(null);
     }
@@ -200,128 +193,111 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className={`${CONTAINER} flex flex-col gap-7`}>
-
-        <PageHeader
-          eyebrow="COB · gestão por resultado"
-          title="Rodada da semana"
-          week={{
-            ariaLabel: "Semana da rodada",
-            label: week ? weekLabel(week) : "…",
-            hint: !data ? "…" : data.closed ? `fechada em ${fmtDateTime(data.closedAt ?? "")}` : "prévia, fecha segunda às 10h",
-            onPrev: () => week && setPickedWeek(addWeeks(week, -1)),
-            onNext: () => week && setPickedWeek(addWeeks(week, 1)),
-            prevDisabled: !week,
-            nextDisabled: !week || !currentMonday || week >= currentMonday,
-          }}
-          actions={
-            <>
-              {data?.closed && rows.length > 0 && (
-                <Button size="sm" onClick={() => openReveal(data.week)} icon={<Play aria-hidden strokeWidth={1.75} />}>
-                  Rever a revelação
-                </Button>
-              )}
-              {data?.canClose && (
+      <div className={`${CONTAINER} flex flex-col gap-10`}>
+        <div className="flex flex-col gap-7">
+          <PageHeader
+            eyebrow="COB · gestão por resultado"
+            title="Rodada da semana"
+            week={{
+              ariaLabel: "Semana da rodada",
+              label: week ? weekLabel(week) : "…",
+              hint: !data ? "lendo a rodada" : data.closed ? `fechada em ${fmtDateTime(data.closedAt ?? "")}` : "prévia, fecha segunda às 10h",
+              onPrev: () => week && setPickedWeek(addWeeks(week, -1)),
+              onNext: () => week && setPickedWeek(addWeeks(week, 1)),
+              prevDisabled: !week,
+              nextDisabled: !week || !currentMonday || week >= currentMonday,
+            }}
+            actions={
+              data?.canClose ? (
                 <Button size="sm" variant="primary" onClick={closeNow} disabled={busy !== null} pending={busy === "close"}>
                   Fechar rodada agora
                 </Button>
-              )}
-            </>
-          }
-        />
+              ) : undefined
+            }
+          />
 
-        {data && week && <SeasonTrack season={data.season} week={week} live={data.missionsWeek} />}
+          {data && week && <SeasonTrack season={data.season} week={week} live={data.missionsWeek} />}
 
-        {actionMsg && (
-          <p
-            role="status"
-            className={`rounded-lg border px-4 py-2.5 text-[13px] ${actionMsg.tone === "ok" ? "border-[#00e5ff]/25 bg-[#00e5ff]/[0.05] text-[#7ff2ff]" : "border-red-500/25 bg-red-500/[0.06] text-red-400"}`}
-          >
-            {actionMsg.text}
-          </p>
-        )}
-
-        {state === "auth" && <Notice title="Sua sessão expirou">Recarregue a página para entrar de novo.</Notice>}
-        {state === "error" && <Notice title="Não deu para ler a rodada">{errorMsg}</Notice>}
-        {data?.clickupError && (
-          <Notice title="Não deu para ler o ClickUp agora">
-            O status das tarefas abaixo é o último guardado. {data.clickupError}
-          </Notice>
-        )}
+          {state === "auth" && (
+            <Notice tone="warn" title="Sua sessão expirou" action={<Button size="sm" onClick={() => window.location.reload()}>Entrar de novo</Button>}>
+              Recarregue a página para entrar de novo.
+            </Notice>
+          )}
+          {state === "error" && (
+            <Notice tone="bad" title={data ? "Não deu para atualizar a rodada agora" : "Não deu para ler a rodada"} action={<Button size="sm" variant="danger" onClick={load}>Tentar de novo</Button>}>
+              {errorMsg} {data ? "Mostrando a última leitura." : ""}
+            </Notice>
+          )}
+          {data?.clickupError && (
+            <Notice tone="warn" title="Não deu para ler o ClickUp agora">
+              O status das tarefas abaixo é o último guardado. {data.clickupError}
+            </Notice>
+          )}
+        </div>
 
         {!data ? (
-          state === "loading" && <Empty>Carregando a rodada…</Empty>
+          state === "loading" && <SemanaSkeleton />
         ) : !rows.length ? (
-          <Empty>Nenhum cliente nesta rodada.</Empty>
+          <Empty title="Nenhum cliente nesta rodada" text="A rodada lê o placar da semana. Lance os números para ela aparecer aqui." action={<Button href="/placar">Lançar no placar</Button>} />
         ) : (
           <>
-            <TeamGoal green={data.team.green} total={data.team.total} />
+            <section aria-label="Meta do time e pódio" className="flex flex-col gap-4">
+              <SectionTitle
+                title="Meta do time"
+                hint="A carteira inteira no verde até janeiro; o pódio é a rodada em tela."
+                right={<Pill tone={data.closed ? "accent" : "neutral"}>{data.closed ? "rodada fechada" : "prévia, ainda muda"}</Pill>}
+              />
+              <TeamGoal green={data.team.green} total={data.team.total} owners={data.owners} levels={levels} onPick={pick} />
+            </section>
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              <section aria-label="Pódio da rodada" className="flex flex-col gap-4 rounded-2xl border border-white/8 bg-white/[0.01] px-5 py-4">
-                <SectionTitle right={data.closed ? "rodada fechada" : "prévia, ainda muda"}>Pódio da rodada</SectionTitle>
-                {data.owners.length ? (
-                  <Podium owners={data.owners} levels={levels} onPick={pick} />
-                ) : (
-                  <Empty>Nenhum cliente com dono nesta rodada.</Empty>
-                )}
-              </section>
-              <section id="temporada" aria-label="Tabela da temporada" className="flex scroll-mt-20 flex-col gap-4 rounded-2xl border border-white/8 bg-white/[0.01] px-5 py-4">
-                <SectionTitle right="só rodada fechada soma">Tabela da temporada</SectionTitle>
-                <SeasonTable table={data.table} picked={person} onPick={pick} />
-              </section>
-            </div>
+            <section id="temporada" aria-label="Tabela da temporada" className="flex scroll-mt-20 flex-col gap-4">
+              <SectionTitle title="Tabela da temporada" hint="Só rodada fechada soma. Toque numa pessoa para ver as missões dela." />
+              <SeasonTable table={data.table} picked={person} onPick={pick} />
+            </section>
 
             {(viradas.length > 0 || prontos.length > 0) && (
-              <div className="grid gap-5 lg:grid-cols-2">
-                <section aria-label="Viradas" className="flex flex-col gap-3">
-                  <SectionTitle>Viradas · saíram do vermelho (+{POINTS.virada})</SectionTitle>
+              <div className="grid gap-10 lg:grid-cols-2">
+                <section aria-label="Viradas" className="flex flex-col gap-4">
+                  <SectionTitle title="Viradas" hint={`Saíram do vermelho nesta rodada (+${POINTS.virada}).`} />
                   {viradas.length ? (
                     <ul className="flex flex-col gap-2">
                       {viradas.map((r) => (
-                        <Highlight key={r.client} row={r} icon="virada" note={`agora ${TONE_STYLE[r.tone].label.toLowerCase()}`} />
+                        <Highlight key={r.client} row={r} icon="virada" note={`agora ${TONE_LABEL[r.tone].toLowerCase()}`} />
                       ))}
                     </ul>
                   ) : (
-                    <Empty>Nenhuma virada nesta rodada.</Empty>
+                    <Empty title="Nenhuma virada nesta rodada" text="Tire um cliente do vermelho para ela aparecer aqui." />
                   )}
                 </section>
-                <section aria-label="Prontos para indicação" className="flex flex-col gap-3">
-                  <SectionTitle>Prontos para indicação · {STREAK}+ rodadas no verde</SectionTitle>
+                <section aria-label="Prontos para indicação" className="flex flex-col gap-4">
+                  <SectionTitle title="Prontos para indicação" hint={`${STREAK} ou mais rodadas seguidas no verde.`} />
                   {prontos.length ? (
                     <ul className="flex flex-col gap-2">
                       {prontos.map((r) => (
-                        <Highlight
-                          key={r.client}
-                          row={r}
-                          icon="selo"
-                          note={`${r.greenStreak} rodadas no verde: pedir indicação e propor aumento`}
-                        />
+                        <Highlight key={r.client} row={r} icon="selo" note={`${r.greenStreak} rodadas no verde: pedir indicação e propor aumento`} />
                       ))}
                     </ul>
                   ) : (
-                    <Empty>Ninguém com {STREAK} rodadas seguidas no verde ainda.</Empty>
+                    <Empty title={`Ninguém com ${STREAK} rodadas seguidas no verde ainda`} text="Segure o verde por quatro rodadas para liberar o selo." />
                   )}
                 </section>
               </div>
             )}
 
-            <div id="missoes" className="flex scroll-mt-20 flex-col gap-3 border-t border-white/8 pt-6">
-              <SectionTitle>Ver por pessoa</SectionTitle>
+            <section id="missoes" aria-label="Ver por pessoa" className="flex scroll-mt-20 flex-col gap-4">
+              <SectionTitle title="Ver por pessoa" hint="Filtra as missões, os vermelhos e o mapa." />
               <PersonFilter owners={owners} picked={person} onPick={setPicked} />
-            </div>
+            </section>
 
             <Missions missions={data.missions} launch={data.launch} week={data.missionsWeek} picked={person} />
 
-            <section aria-label="Clientes no vermelho" className="flex flex-col gap-3">
-              <SectionTitle>No vermelho · plano de recuperação no ClickUp ({reds.length})</SectionTitle>
+            <section aria-label="Clientes no vermelho" className="flex flex-col gap-4">
+              <SectionTitle title="No vermelho" hint={`Plano de recuperação no ClickUp, ${reds.length === 1 ? "1 cliente" : `${reds.length} clientes`}.`} />
               {!data.clickup && (
-                <p className="text-[13px] text-amber-300/90">
-                  O ClickUp ainda não está ligado no servidor, então as tarefas não são criadas.
-                </p>
+                <Notice tone="info">O ClickUp ainda não está ligado no servidor, então as tarefas não são criadas.</Notice>
               )}
               {reds.length ? (
-                <div className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-2">
                   {reds.map((r) => (
                     <RedRow
                       key={r.client}
@@ -329,14 +305,15 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
                       task={taskFor(data.tasks, r.client)}
                       mission={data.missions.find((m) => m.client === r.client && !m.done) ?? null}
                       canCreate={data.clickup}
+                      now={now}
                       busy={busy === r.client}
                       disabled={busy !== null}
                       onCreate={() => createTask(r)}
                     />
                   ))}
-                </div>
+                </ul>
               ) : (
-                <Empty>Nenhum cliente no vermelho nesta rodada.</Empty>
+                <Empty title="Nenhum cliente no vermelho nesta rodada" text="Quando um cliente cair abaixo de 4, ele aparece aqui com a tarefa." />
               )}
             </section>
 
@@ -344,28 +321,59 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
               <ClientMap rows={rows} picked={person} missions={data.missions} tasks={data.tasks} />
             </div>
 
-            <Conquistas table={data.table} />
+            <section aria-label="Conquistas da temporada" className="flex flex-col gap-4">
+              <SectionTitle title="Conquistas da temporada" hint="Não dão ponto, marcam o caminho." />
+              <Conquistas table={data.table} />
+            </section>
 
             <Rules />
+
+            {data.closed && rows.length > 0 && (
+              <div className="flex justify-center">
+                <Button variant="link" onClick={() => openReveal(data.week)} icon={<Play aria-hidden strokeWidth={1.75} />}>
+                  Rever a revelação
+                </Button>
+              </div>
+            )}
           </>
         )}
       </div>
 
       <AnimatePresence>{reveal && data && <Reveal data={data} onClose={() => setReveal(false)} />}</AnimatePresence>
       <Confetti seed={burst} pieces={60} />
-      <AnimatePresence>
-        {toast && (
-          <motion.p
-            role="status"
-            className="fixed bottom-6 left-1/2 z-[55] -translate-x-1/2 rounded-full bg-emerald-400 px-5 py-2.5 text-[14px] font-semibold text-[#04141a] shadow-xl"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-          >
-            {toast}
-          </motion.p>
-        )}
-      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Esqueleto com a forma da tela (§7): meta com pódio e quatro linhas da tabela. */
+function SemanaSkeleton() {
+  return (
+    <div className="flex flex-col gap-10" aria-busy aria-label="Carregando a rodada">
+      <div className="flex flex-col gap-4">
+        <Skeleton className="w-40" />
+        <Surface className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
+          <div className="flex items-center gap-5">
+            <div className="size-14 shrink-0 rounded-full bg-surface-2 motion-safe:animate-pulse" aria-hidden />
+            <Skeleton lines={2} className="flex-1" />
+          </div>
+          <div className="flex items-end justify-center gap-2.5">
+            {[80, 112, 56].map((h, i) => (
+              <div key={i} className="w-[31%] max-w-[170px] rounded-t-md bg-surface-2 motion-safe:animate-pulse" style={{ height: h }} aria-hidden />
+            ))}
+          </div>
+        </Surface>
+      </div>
+      <div className="flex flex-col gap-4">
+        <Skeleton className="w-48" />
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Surface key={i} className="flex items-center gap-3 px-4 py-3">
+              <Skeleton className="w-6" />
+              <Skeleton lines={2} className="flex-1" />
+            </Surface>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -379,17 +387,31 @@ function taskFor(tasks: RodadaTaskInfo[], client: string): RodadaTaskInfo | unde
 function Highlight({ row, note, icon }: { row: RodadaClient; note: string; icon: "virada" | "selo" }) {
   const Icon = icon === "virada" ? TrendingUp : Award;
   return (
-    <li className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.015] px-4 py-3">
-      <ScoreBadge tone={row.tone} score={row.score} />
+    <Surface as="li" className="flex min-h-11 items-center gap-3 px-4 py-3">
+      <Ring value={row.score} tone={row.tone} size={40} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[14px] font-medium text-white">{row.name}</span>
-        <span className="text-[12.5px] text-zinc-500">
+        <span className="truncate type-subtitle text-fg">{row.name}</span>
+        <span className="type-caption text-dim">
           {row.owner || "sem dono"} · {note}
         </span>
       </div>
-      <Icon aria-hidden className={`size-5 shrink-0 ${icon === "virada" ? "text-emerald-300" : "text-[#00e5ff]"}`} />
-    </li>
+      <Icon aria-hidden className={cn("size-[18px] shrink-0", icon === "virada" ? "text-good" : "text-accent-text")} strokeWidth={1.75} />
+    </Surface>
   );
+}
+
+const DUE_MS = 72 * 3600_000;
+const fmtDue = (ms: number) => new Date(ms).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+/** Prazo da tarefa como chip: `warn` a menos de 24h, `bad` vencido. A tarefa nasce no fechamento da rodada e vence 72h depois. */
+function Deadline({ task, now }: { task: RodadaTaskInfo; now: number | null }) {
+  if (task.closed) return <Pill tone="good">tarefa fechada</Pill>;
+  if (now === null) return null;
+  const due = closesAt(task.week) + DUE_MS;
+  const left = due - now;
+  if (left <= 0) return <Pill tone="bad">venceu {fmtDue(due)}</Pill>;
+  if (left < 24 * 3600_000) return <Pill tone="warn">vence em {Math.max(1, Math.floor(left / 3600_000))}h</Pill>;
+  return <Pill>vence {fmtDue(due)}</Pill>;
 }
 
 function RedRow({
@@ -397,6 +419,7 @@ function RedRow({
   task,
   mission,
   canCreate,
+  now,
   busy,
   disabled,
   onCreate,
@@ -405,6 +428,7 @@ function RedRow({
   task: RodadaTaskInfo | undefined;
   mission: Mission | null;
   canCreate: boolean;
+  now: number | null;
   busy: boolean;
   disabled: boolean;
   onCreate: () => void;
@@ -412,17 +436,21 @@ function RedRow({
   const open = task && !task.closed;
   const decide = row.redStreak >= STREAK;
   return (
-    <div
-      className={`flex flex-wrap items-center gap-x-4 gap-y-2.5 rounded-xl border px-4 py-3 ${decide ? "border-red-500/40 bg-red-500/[0.05]" : "border-white/8 bg-white/[0.015]"}`}
+    <Surface
+      as="li"
+      className={cn(
+        "relative flex min-h-11 flex-wrap items-center gap-x-4 gap-y-3 overflow-hidden px-4 py-3",
+        decide && "before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-r before:bg-bad before:content-['']",
+      )}
     >
-      <ScoreBadge tone={row.tone} score={row.score} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[14px] font-medium text-white">{row.name}</span>
-        <span className="text-[12.5px] text-zinc-500">
+      <Ring value={row.score} tone={row.tone} size={40} />
+      <div className="flex min-w-0 flex-1 basis-[200px] flex-col gap-0.5">
+        <span className="truncate type-subtitle text-fg">{row.name}</span>
+        <span className="type-caption text-dim">
           {row.owner || "sem dono"}
           {row.meta ? ` · meta ${row.meta}` : ""} ·{" "}
           {decide ? (
-            <b className="font-semibold text-red-400">{row.redStreak} rodadas no vermelho: decidir na reunião</b>
+            <b className="font-semibold text-bad">{row.redStreak} rodadas no vermelho: decidir na reunião</b>
           ) : row.redStreak > 1 ? (
             `${row.redStreak}ª rodada seguida no vermelho`
           ) : (
@@ -430,25 +458,26 @@ function RedRow({
           )}
         </span>
         {mission && (
-          <span className={`mt-0.5 text-[12.5px] ${mission.blocked ? "text-amber-300" : "text-zinc-300"}`}>
+          <span className={cn("mt-0.5 type-body", mission.blocked ? "text-warn" : "text-mute")}>
             Missão da semana (+{mission.points}): {mission.todo.charAt(0).toLowerCase() + mission.todo.slice(1)}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {task && <Deadline task={task} now={now} />}
         {task && (
-          <a href={task.url} target="_blank" rel="noreferrer" className={`${btnGhost} h-8`}>
+          <Button variant="link" href={task.url} {...EXTERNAL_LINK} iconEnd={<ArrowUpRight aria-hidden strokeWidth={1.75} />}>
             {open ? `Tarefa: ${task.status || "aberta"}` : "Tarefa fechada"}
             {task.escalated ? " · escalada" : ""}
-          </a>
+          </Button>
         )}
         {!open && canCreate && (
-          <button type="button" onClick={onCreate} disabled={disabled} className={`${btnPrimary} h-8`}>
-            {busy ? "Criando…" : task ? "Criar nova tarefa" : "Criar tarefa"}
-          </button>
+          <Button size="sm" variant="primary" onClick={onCreate} disabled={disabled} pending={busy}>
+            {task ? "Criar nova tarefa" : "Criar tarefa"}
+          </Button>
         )}
       </div>
-    </div>
+    </Surface>
   );
 }
 
@@ -460,16 +489,16 @@ function Rules() {
     [`+${POINTS.sequencia}`, `a cada ${STREAK} rodadas seguidas no verde (selo de indicação)`],
   ];
   return (
-    <section aria-label="Como pontua" className="flex flex-col gap-2 border-t border-white/8 pt-5">
-      <SectionTitle>Como pontua</SectionTitle>
-      <ul className="flex flex-wrap gap-x-6 gap-y-1.5 text-[13px] text-zinc-400">
+    <section aria-label="Como pontua" className="flex max-w-[760px] flex-col gap-3">
+      <SectionTitle title="Como pontua" />
+      <ul className="flex flex-wrap gap-x-6 gap-y-1.5 type-body text-mute">
         {items.map(([p, t]) => (
           <li key={t}>
-            <b className="font-mono font-semibold text-white">{p}</b> {t}
+            <b className="font-semibold tabular-nums text-fg">{p}</b> {t}
           </li>
         ))}
       </ul>
-      <p className="text-[12.5px] leading-relaxed text-zinc-500">
+      <p className="max-w-[68ch] type-body text-mute">
         Não existe ponto negativo. XP da rodada é a média de pontos por cliente × 10, para carteira grande não ganhar só
         pelo tamanho. O XP das rodadas fechadas soma na temporada e sobe o nível:{" "}
         {LEVELS.map((l) => `${l.name} (${l.from})`).join(", ")}. A rodada fecha na segunda às 10h e a nota fica congelada.
