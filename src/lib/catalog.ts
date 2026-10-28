@@ -103,7 +103,7 @@ export const SHELVES: Shelf[] = [
 ];
 
 /**
- * menu-enxuto-20260824 — eram 11 cards e o time abria vários pra descobrir onde ir.
+ * menu-enxuto-20260824: eram 11 cards e o time abria vários pra descobrir onde ir.
  * Estes continuam no ar e a um clique, só deixaram de disputar atenção com o dia a dia.
  */
 export const SECUNDARIOS: Shortcut[] = [

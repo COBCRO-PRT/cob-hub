@@ -4,7 +4,7 @@ import { COOKIE_NAME, COOKIE_MAX_AGE, safeNext, sessionToken } from "@/lib/gate"
 import { Logo } from "@/components/Logo";
 
 export const metadata = {
-  title: "Entrar — COB Hub",
+  title: "Entrar · COB Hub",
   robots: { index: false, follow: false },
 };
 

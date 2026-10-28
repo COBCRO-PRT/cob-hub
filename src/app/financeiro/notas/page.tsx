@@ -11,7 +11,7 @@ import type { Enquadramento } from "@/lib/nf/simples";
 import { cancelarLinha, emitirLinha, emitirPendentes } from "./acoes";
 
 export const metadata = {
-  title: "Notas do mês — COB Hub",
+  title: "Notas do mês · COB Hub",
   robots: { index: false, follow: false },
 };
 
@@ -269,8 +269,8 @@ export default async function Notas({
         }`}
       >
         {producao
-          ? "AMBIENTE DE PRODUÇÃO — o que for emitido aqui é nota fiscal de verdade"
-          : "ambiente de teste (sandbox) — nada aqui tem valor fiscal"}
+          ? "AMBIENTE DE PRODUÇÃO: o que for emitido aqui é nota fiscal de verdade"
+          : "ambiente de teste (sandbox): nada aqui tem valor fiscal"}
       </div>
 
       <div className="mx-auto w-full max-w-[1180px] px-6 pb-44 pt-8">
