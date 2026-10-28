@@ -23,7 +23,7 @@ const LIMITS = {
   bgAlpha: null,
   zinc: null,
   transitionUnsafe: null,
-  deadUi: null,
+  deadUi: 0,
   emDash: 0,
 };
 
