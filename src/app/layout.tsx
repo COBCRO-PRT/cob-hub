@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { Onest, Geist_Mono } from "next/font/google";
 import { Hud, HudSpacer } from "@/components/hud/Hud";
 import { USER_COOKIE_NAME, readSession } from "@/lib/gate-pessoa";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { MotionProvider } from "@/components/MotionProvider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -38,11 +38,11 @@ export default async function RootLayout({
       className={`${onest.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <TooltipProvider>
+        <MotionProvider>
           <Hud pessoa={pessoa ? { name: pessoa.name, role: pessoa.role } : null} />
           {children}
           <HudSpacer />
-        </TooltipProvider>
+        </MotionProvider>
         <Toaster />
       </body>
     </html>
