@@ -10,6 +10,10 @@ export { Score, fmtScore } from "./score";
 export { Trail } from "./trail";
 export { Bar } from "./bar";
 export { PlayerLevel } from "./player-level";
+export { Modal } from "./modal";
+export { Empty } from "./empty";
+export { Notice } from "./notice";
+export { Skeleton } from "./skeleton";
 export { spring, ease, dur, panelIn, fade } from "./motion";
 
 /** Contêiner único de todas as telas (§4.4): mesma margem do HUD. */

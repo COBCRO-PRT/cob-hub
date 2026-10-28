@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Bar, Button, Metric, PlayerLevel, Score, SectionTitle, Surface, Trail } from "@/components/ui";
+import { toast } from "sonner";
+import { Bar, Button, Empty, Field, Metric, Modal, Notice, PlayerLevel, Score, SectionTitle, Skeleton, Surface, Trail } from "@/components/ui";
 import { levelFor } from "@/lib/placar/rodada-rules";
 import type { Tone } from "@/lib/placar/score";
 
@@ -12,6 +13,7 @@ const SCORES = [7, 8, 5, 9, 8.5, 10, 2, 9.2];
 /** Dado vivo: troca de valor para provar que o número desliza, e 42 anéis para provar que o scroll não trava. */
 export function Demo() {
   const [alt, setAlt] = useState(false);
+  const [open, setOpen] = useState<"sm" | "md" | null>(null);
   const v = alt ? { red: 3, avg: 7.4, green: 29, xp: 212, score: 7.9 } : { red: 6, avg: 6.8, green: 24, xp: 140, score: 9.2 };
   return (
     <>
@@ -43,6 +45,53 @@ export function Demo() {
             <PlayerLevel xp={430} level={levelFor(430)} size="md" />
           </div>
         </Surface>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <SectionTitle
+          title="Modal, toast, aviso, vazio e esqueleto"
+          hint="Um modal (folha no celular), um toast, um aviso em três tons."
+          right={
+            <>
+              <Button size="sm" onClick={() => setOpen("sm")}>Modal sm</Button>
+              <Button size="sm" onClick={() => setOpen("md")}>Modal md</Button>
+              <Button size="sm" variant="soft" onClick={() => toast.success("Lançado", { description: "Green Paradise · 182 contatos" })}>Toast</Button>
+            </>
+          }
+        />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Notice tone="info" title="Dados locais de desenvolvimento">Nada daqui chega ao time.</Notice>
+          <Notice tone="warn" title="Falta configurar antes de emitir" action={<Button size="sm">Ver</Button>}>ASAAS_API_KEY não configurada.</Notice>
+          <Notice tone="bad" title="Não deu para ler o placar" action={<Button size="sm" variant="danger">Tentar de novo</Button>}>O servidor respondeu 500.</Notice>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Empty title="Nenhum cliente no placar" text="Cadastre o primeiro para começar a lançar números." action={<Button variant="primary">Novo cliente</Button>} />
+          <Surface className="flex flex-col gap-4 p-4">
+            <div className="flex gap-3"><Skeleton shape="ring" /><Skeleton lines={2} className="flex-1" /></div>
+            <Skeleton shape="metric" />
+            <Skeleton shape="row" />
+          </Surface>
+        </div>
+        <Modal
+          open={open !== null}
+          onClose={() => setOpen(null)}
+          size={open ?? "md"}
+          title={open === "sm" ? "Apagar Vale das Nuvens?" : "Lançar: Green Paradise"}
+          description={open === "sm" ? "Some do placar e das rodadas futuras. As rodadas fechadas ficam." : "Semana de 19/10 a 25/10"}
+          footer={
+            <>
+              <Button onClick={() => setOpen(null)}>Cancelar</Button>
+              <Button variant={open === "sm" ? "danger" : "primary"} onClick={() => setOpen(null)}>{open === "sm" ? "Apagar" : "Salvar"}</Button>
+            </>
+          }
+        >
+          {open === "md" && (
+            <div className="flex flex-col gap-4">
+              <Field id="demo-res" label="Resultado na semana" placeholder="Ex.: 182" inputMode="decimal" hint="Este cliente ainda não tem meta. O número fica guardado." />
+              <Field id="demo-obs" label="O que aconteceu" as="textarea" placeholder="Ex.: 2 matrículas, campanha nova subiu na quarta" />
+            </div>
+          )}
+        </Modal>
       </section>
 
       <section className="flex flex-col gap-4">
