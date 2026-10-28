@@ -7,7 +7,7 @@ import { dur, ease } from "./motion";
 
 const FILL: Record<Tone | "accent", string> = { good: "bg-good", warn: "bg-warn", bad: "bg-bad", none: "bg-none", accent: "bg-accent" };
 
-/** A única barra de progresso (§5). Enche uma vez ao entrar; depois interpola. `marker` é o traço da meta. */
+/** A única barra de progresso (§5). Enche uma vez ao entrar; depois interpola. `marker` é o traço da meta. Sem `label` é decorativa (aria-hidden). */
 export function Bar({
   value,
   max,
@@ -30,10 +30,11 @@ export function Bar({
   const mk = marker !== undefined && max > 0 ? Math.max(0, Math.min(100, (marker / max) * 100)) : null;
   return (
     <div
-      role="progressbar"
-      aria-valuenow={Math.round(value)}
-      aria-valuemin={0}
-      aria-valuemax={Math.round(max)}
+      role={label ? "progressbar" : undefined}
+      aria-hidden={label ? undefined : true}
+      aria-valuenow={label ? Math.round(value) : undefined}
+      aria-valuemin={label ? 0 : undefined}
+      aria-valuemax={label ? Math.round(max) : undefined}
       aria-label={label}
       className={cn("relative w-full overflow-hidden rounded-full bg-line", size === "sm" ? "h-1" : "h-2", className)}
     >

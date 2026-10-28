@@ -74,7 +74,7 @@ componente é bug.** Exceções: `Logo.tsx` e confete, que têm cor própria por
 | `line-strong` | `rgba(255,255,255,.14)` | borda em hover e em foco de card |
 | `fg` | `#f2f4f7` | texto principal |
 | `mute` | `#a3abb5` | texto secundário (6,9:1) |
-| `dim` | `#6f7883` | rótulo e placeholder (4,6:1); nunca abaixo disto em texto |
+| `dim` | `#7c8591` | rótulo e placeholder (4,9:1 sobre surface-2, medido no axe); nunca abaixo disto em texto |
 | `accent` | `#00e5ff` | ação principal, item ativo, foco |
 | `accent-fg` | `#04141a` | texto sobre o acento |
 | `accent-soft` | `rgba(0,229,255,.10)` | fundo do item ativo e do brilho do gesto-herói |
@@ -82,7 +82,7 @@ componente é bug.** Exceções: `Logo.tsx` e confete, que têm cor própria por
 | `good` | `#34d399` | verde |
 | `warn` | `#fbbf24` | amarelo |
 | `bad` | `#f87171` | vermelho |
-| `none` | `#6f7883` | cinza (sem leitura) |
+| `none` | `#7c8591` | cinza (sem leitura) |
 | `gold` | `#f2c66d` | só nível Lenda e selo de 1º lugar da temporada |
 
 Regras:
@@ -339,6 +339,8 @@ tokens e fica quieto.
 | Rolagem horizontal a 390px | nenhuma | nenhuma |
 | axe (cdnjs, no Chrome real) | não medido | 0 sério ou crítico |
 | Nota anti-IA | ~5 | ≤ 3 |
+
+Medido em 28/10 depois da fase 2: fontes em px 0, hex cru 0, opacidades 0, superfícies 3 tokens, modal 1, primitivos mortos 0, 1 margem, skeleton em 5 telas, transições sem motion-safe 0, tsc/lint/build verdes, axe 0 sério ou crítico em Início, Placar e Rodada, sem rolagem horizontal a 390px. Nota anti-IA e vista do dono e Notas no navegador ficam para a prova de deploy.
 
 ## 11. Fases (cada uma publicável)
 
