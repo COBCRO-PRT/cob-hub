@@ -6,7 +6,8 @@
  * Componente não usa hex: usa só as classes que nascem daqui.
  */
 @theme {
-  /* cor (§4.1). A paleta padrão do Tailwind (zinc, emerald...) ainda existe até a Task 17 zerar o uso. */
+  /* cor (§4.1). A paleta padrão do Tailwind (zinc, emerald...) sai: só os tokens daqui existem. */
+  --color-*: initial;
   --color-bg: #07080a;
   --color-surface-1: #0c0e11;
   --color-surface-2: #11141a;

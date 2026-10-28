@@ -529,7 +529,7 @@ function ClientRow({
         <div className="min-w-0 type-body text-fg [overflow-wrap:anywhere]">
           <CellLabel>Meta</CellLabel>
           {c.kind === "projeto" ? dim("marco no prazo") : mt ? mt : dim("sem meta")}
-          {c.meta_note && <span className="block type-caption text-dim">{c.meta_note}</span>}
+          {c.meta_note && <span className="line-clamp-2 type-caption text-dim" title={c.meta_note}>{c.meta_note}</span>}
         </div>
 
         <div className="min-w-0 type-body text-fg">

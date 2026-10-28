@@ -16,13 +16,13 @@ const SRC = join(ROOT, "src");
 
 /** Limite por regra. `null` = só inventário. */
 const LIMITS = {
-  hex: null,
-  pxText: null,
-  monoNumber: null,
-  borderAlpha: null,
-  bgAlpha: null,
-  zinc: null,
-  transitionUnsafe: null,
+  hex: 0,
+  pxText: 0,
+  monoNumber: 0,
+  borderAlpha: 0,
+  bgAlpha: 0,
+  zinc: 0,
+  transitionUnsafe: 0,
   deadUi: 0,
   emDash: 0,
 };
