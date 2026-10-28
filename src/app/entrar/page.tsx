@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_NAME, COOKIE_MAX_AGE, safeNext, sessionToken } from "@/lib/gate";
-import { Logo } from "@/components/Logo";
+import { LoginCard } from "@/components/LoginCard";
 
 export const metadata = {
   title: "Entrar · COB Hub",
@@ -41,47 +41,15 @@ export default async function Entrar({
   const semSenhaNoServidor = !(await sessionToken());
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#07080a] px-6">
-      <div className="w-full max-w-[360px]">
-        <Logo className="h-5" />
-
-        <h1 className="mt-6 text-[26px] font-bold leading-tight tracking-tight text-white">
-          Menu interno
-        </h1>
-        <p className="mt-2 text-[14.5px] leading-relaxed text-zinc-400">
-          Use a senha do time. Se não tiver, pede pro Matheus.
-        </p>
-
-        <form action={entrar} className="mt-7 flex flex-col gap-3">
-          <input type="hidden" name="next" value={destino} />
-          <input
-            type="password"
-            name="senha"
-            required
-            autoComplete="current-password"
-            placeholder="Senha do time"
-            className="w-full rounded-xl border border-white/10 bg-[#0c0e11] px-4 py-3 text-[15px] text-white outline-none transition placeholder:text-zinc-600 focus:border-[#00e5ff]"
-          />
-          <button
-            type="submit"
-            className="w-full rounded-full bg-[#00e5ff] px-4 py-3 text-[15px] font-semibold text-[#04141a] transition hover:bg-[#00b4d8]"
-          >
-            Entrar
-          </button>
-        </form>
-
-        {erro && (
-          <p className="mt-4 font-mono text-[12px] text-red-400">
-            Senha errada. Tenta de novo.
-          </p>
-        )}
-
-        {semSenhaNoServidor && (
-          <p className="mt-4 font-mono text-[12px] leading-relaxed text-amber-400/80">
-            HUB_PASSWORD não está configurada no servidor, então nada abre.
-          </p>
-        )}
-      </div>
-    </div>
+    <LoginCard
+      title="Menu interno"
+      text="Use a senha do time. Se não tiver, pede pro Matheus."
+      fields={["password"]}
+      action={entrar}
+      next={destino}
+      passwordLabel="Senha do time"
+      error={erro ? "Senha errada. Tenta de novo." : undefined}
+      notice={semSenhaNoServidor ? "HUB_PASSWORD não está configurada no servidor, então nada abre." : undefined}
+    />
   );
 }
