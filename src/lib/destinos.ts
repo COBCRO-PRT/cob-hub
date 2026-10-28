@@ -48,6 +48,7 @@ const HUB: Destino[] = [
   { id: "temporada", name: "Tabela da temporada", what: "XP, nível e conquistas de cada pessoa.", href: "/placar/semana#temporada", group: "hub", external: false, icon: "temporada", keywords: "xp nivel conquista ranking" },
   { id: "notas", name: "Notas do mês", what: "O lote de nota fiscal dos clientes. Pede a segunda senha.", href: "/financeiro/notas", group: "hub", external: false, icon: "notas", admin: true, keywords: "nf nota fiscal asaas emitir" },
   { id: "placar-fin", name: "Placar com valores", what: "O placar com a mensalidade de cada cliente e o valor em risco.", href: "/financeiro/placar", group: "hub", external: false, icon: "financeiro", admin: true, keywords: "mensalidade fee risco dinheiro" },
+  { id: "ds", name: "Design system", what: "Os primitivos do hub em todas as variantes. Só para quem constrói.", href: "/ds", group: "hub", external: false, icon: "inicio", admin: true, keywords: "design tokens componentes styleguide" },
 ];
 
 const tool = (s: Shortcut): Destino => {
