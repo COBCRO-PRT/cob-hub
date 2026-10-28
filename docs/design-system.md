@@ -384,3 +384,14 @@ escolher; sem git, cada tela fecha com um backup datado em `~/Projects/_backups/
 - Seção "Como a nota sai" do Placar continua, em `SectionTitle` + `body`.
 - Notas entram com confirmação de cancelamento, por ser ação fiscal irreversível.
 - Nenhuma dependência nova. Se o anel exigir, fica SVG puro.
+- As utilidades de tipo chamam-se `type-display`, `type-title`, `type-subtitle`, `type-body`, `type-caption`,
+  `type-label`, `type-metric-lg`, `type-metric`, `type-metric-sm` (prefixo `type-` para não brigar com `text-*` de
+  cor no tailwind-merge).
+- O `Modal` entra com a curva quint em CSS (200ms), não com a mola: o base-ui controla a montagem e a
+  desmontagem, e a mola do motion não se encaixa nesse ciclo. Menu rápido, folha do jogador e painéis do motion
+  usam a mola.
+- Ícone entra em `Button` e `Pill` como elemento (`icon={<Plus />}`), nunca como componente, para servir de
+  tela de servidor (o Next não serializa componente para cliente).
+- `Score` de 56px usa texto de 20px, não `type-metric` (28px): "9,2" não cabe no anel.
+- O `/api/placar/eu` também é relido quando a aba volta ao foco, não só a cada 60s.
+- Linha do Placar fechou em 62px (py 10px): 12 linhas em 900px de altura.
