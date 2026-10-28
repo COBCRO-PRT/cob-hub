@@ -2,10 +2,9 @@
 
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Button, Field, Modal, Notice } from "@/components/ui";
 import { isNum, metaText, parseDecLoose, weekLabel } from "@/lib/placar/score";
 import type { Audience, BoardClient, ClientKind, MetaMode, MetaPeriod, PlacarEntry } from "@/lib/placar/types";
-import { btnDanger, btnGhost, btnPrimary, fieldInput, fieldLabel } from "./tones";
 
 /** Envia JSON e devolve a mensagem de erro do servidor, ou null quando deu certo. */
 export async function send(url: string, method: string, body?: unknown): Promise<string | null> {
@@ -27,44 +26,12 @@ export async function send(url: string, method: string, body?: unknown): Promise
 
 const decText = (n: number | null | undefined) => (isNum(n) ? String(n).replace(".", ",") : "");
 
-function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className={fieldLabel}>
-        {label}
-      </label>
-      {children}
-      {hint && <span className="text-[12px] leading-snug text-zinc-500">{hint}</span>}
-    </div>
-  );
-}
-
 function Check({ id, checked, onChange, children }: { id: string; checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
   return (
-    <label htmlFor={id} className="flex items-start gap-2.5 text-[13.5px] leading-snug text-zinc-300">
-      <input
-        id={id}
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 size-4 shrink-0 accent-[#00e5ff]"
-      />
+    <label htmlFor={id} className="flex items-start gap-2.5 type-body text-mute">
+      <input id={id} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-accent" />
       <span>{children}</span>
     </label>
-  );
-}
-
-function Shell({ open, onClose, title, sub, children }: { open: boolean; onClose: () => void; title: string; sub?: string; children: ReactNode }) {
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto border border-white/10 bg-[#121212] p-5 ring-0 sm:max-w-[520px]">
-        <div className="flex flex-col gap-1.5 pr-8">
-          <DialogTitle className="text-[18px] font-bold leading-tight tracking-tight text-white">{title}</DialogTitle>
-          {sub && <DialogDescription className="text-[13px] text-zinc-500">{sub}</DialogDescription>}
-        </div>
-        {children}
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -86,18 +53,10 @@ export function EntryDialog({
   onSaved: () => void;
 }) {
   return (
-    <Shell
-      open={!!client}
-      onClose={onClose}
-      title={client ? `Lançar: ${client.name}` : "Lançar"}
-      sub={client ? `Semana de ${weekLabel(week)}${metaText(client) ? ` · meta ${metaText(client)}` : ""}` : undefined}
-    >
-      {client && (
-        // A chave recria o formulário a cada abertura. O polling de 30 s não
-        // passa por aqui, então o que está digitado não some.
-        <EntryForm key={`${client.id}_${week}`} client={client} week={week} entry={entry} apiBase={apiBase} onClose={onClose} onSaved={onSaved} />
-      )}
-    </Shell>
+    // A chave recria o formulário a cada abertura. O polling de 30 s não passa por aqui, então o que está digitado não some.
+    client && (
+      <EntryForm key={`${client.id}_${week}`} client={client} week={week} entry={entry} apiBase={apiBase} onClose={onClose} onSaved={onSaved} />
+    )
   );
 }
 
@@ -124,7 +83,7 @@ function EntryForm({
   const [cs, setCs] = useState(decText(entry?.client_score));
   const [note, setNote] = useState(entry?.note ?? "");
   const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"save" | "delete" | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
 
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -149,20 +108,20 @@ function EntryForm({
     if (!("value" in body) && !("milestone" in body) && !("client_score" in body)) {
       return setErr("Preencha o resultado, o marco ou a nota do cliente.");
     }
-    setBusy(true);
+    setBusy("save");
     const e = await send(`${apiBase}/entries`, "PUT", body);
-    setBusy(false);
+    setBusy(null);
     if (e) return setErr(e);
-    toast.success("Lançamento salvo");
+    toast.success("Lançamento salvo", { description: `${client.name} · ${weekLabel(week)}` });
     onSaved();
     onClose();
   }
 
   async function remove() {
-    if (!confirmDel) return setConfirmDel(true);
-    setBusy(true);
+    setBusy("delete");
     const e = await send(`${apiBase}/entries?client=${encodeURIComponent(client.id)}&week=${week}`, "DELETE");
-    setBusy(false);
+    setBusy(null);
+    setConfirmDel(false);
     if (e) return setErr(e);
     toast.success("Lançamento apagado");
     onSaved();
@@ -170,63 +129,90 @@ function EntryForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      {!proj && (
-        <Field
-          label={valueLabel}
-          htmlFor="e-value"
-          hint={metaText(client) ? undefined : "Este cliente ainda não tem meta. O número fica guardado, mas a nota só sai quando a meta for combinada."}
-        >
-          <input id="e-value" type="text" inputMode="decimal" autoComplete="off" value={value} onChange={(e) => setValue(e.target.value)} className={fieldInput} />
-        </Field>
-      )}
-      {!proj && !rate && (
-        <Check id="e-month" checked={month} onChange={setMonth}>
-          Este número é do mês inteiro e vale pelas 4 semanas até esta
-        </Check>
-      )}
-      {proj && (
-        <Field label="O marco desta semana saiu no prazo?" htmlFor="e-ms">
-          <select id="e-ms" value={ms} onChange={(e) => setMs(e.target.value)} className={fieldInput}>
-            <option value="">Não informado</option>
-            <option value="sim">Sim, no prazo</option>
-            <option value="nao">Não, atrasou</option>
-          </select>
-        </Field>
-      )}
-      <Field label="Nota que o cliente deu (0 a 10)" htmlFor="e-cs" hint="Uma vez por mês. Vale por 5 semanas.">
-        <input id="e-cs" type="text" inputMode="decimal" autoComplete="off" value={cs} onChange={(e) => setCs(e.target.value)} className={fieldInput} />
-      </Field>
-      <Field label="O que aconteceu" htmlFor="e-note">
-        <textarea
-          id="e-note"
-          rows={3}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Ex.: 2 matrículas, campanha nova subiu na quarta"
-          className={`${fieldInput} min-h-[72px] resize-y`}
-        />
-      </Field>
-      {err && (
-        <p role="alert" className="text-[13px] text-red-400">
-          {err}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {entry && (
-          <button type="button" onClick={remove} disabled={busy} className={btnDanger}>
-            {confirmDel ? "Confirmar: apagar" : "Apagar lançamento"}
-          </button>
-        )}
-        <span className="flex-1" />
-        <button type="button" onClick={onClose} className={btnGhost}>
-          Cancelar
-        </button>
-        <button type="submit" disabled={busy} className={btnPrimary}>
-          {busy ? "Salvando…" : "Salvar"}
-        </button>
-      </div>
-    </form>
+    <>
+      <Modal
+        open
+        onClose={onClose}
+        title={`Lançar: ${client.name}`}
+        description={`Semana de ${weekLabel(week)}${metaText(client) ? ` · meta ${metaText(client)}` : ""}`}
+        footer={
+          <>
+            {entry && (
+              <Button variant="danger" onClick={() => setConfirmDel(true)} disabled={busy !== null} className="mr-auto">
+                Apagar lançamento
+              </Button>
+            )}
+            <Button onClick={onClose}>Cancelar</Button>
+            <Button type="submit" form="placar-entry-form" variant="primary" pending={busy === "save"} disabled={busy !== null}>
+              Salvar
+            </Button>
+          </>
+        }
+      >
+        <form id="placar-entry-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
+          {!proj && (
+            <Field
+              id="e-value"
+              label={valueLabel}
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={value}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+              hint={metaText(client) ? undefined : "Este cliente ainda não tem meta. O número fica guardado, mas a nota só sai quando a meta for combinada."}
+            />
+          )}
+          {!proj && !rate && (
+            <Check id="e-month" checked={month} onChange={setMonth}>
+              Este número é do mês inteiro e vale pelas 4 semanas até esta
+            </Check>
+          )}
+          {proj && (
+            <Field id="e-ms" label="O marco desta semana saiu no prazo?" as="select" value={ms} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMs(e.target.value)}>
+              <option value="">Não informado</option>
+              <option value="sim">Sim, no prazo</option>
+              <option value="nao">Não, atrasou</option>
+            </Field>
+          )}
+          <Field
+            id="e-cs"
+            label="Nota que o cliente deu (0 a 10)"
+            hint="Uma vez por mês. Vale por 5 semanas."
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={cs}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCs(e.target.value)}
+          />
+          <Field
+            id="e-note"
+            label="O que aconteceu"
+            as="textarea"
+            rows={3}
+            value={note}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNote(e.target.value)}
+            placeholder="Ex.: 2 matrículas, campanha nova subiu na quarta"
+          />
+          {err && <Notice tone="bad">{err}</Notice>}
+        </form>
+      </Modal>
+
+      <Modal
+        open={confirmDel}
+        onClose={() => setConfirmDel(false)}
+        size="sm"
+        title="Apagar o lançamento?"
+        description={`${client.name}, semana de ${weekLabel(week)}. A nota desta semana volta a ser calculada sem ele.`}
+        footer={
+          <>
+            <Button onClick={() => setConfirmDel(false)}>Cancelar</Button>
+            <Button variant="danger" onClick={remove} pending={busy === "delete"}>
+              Apagar
+            </Button>
+          </>
+        }
+      />
+    </>
   );
 }
 
@@ -250,11 +236,7 @@ export function ClientDialog({
   onSaved: () => void;
 }) {
   return (
-    <Shell open={open} onClose={onClose} title={client ? `Editar: ${client.name}` : "Novo cliente"}>
-      {open && (
-        <ClientForm key={client?.id ?? "__new"} client={client} audience={audience} owners={owners} apiBase={apiBase} onClose={onClose} onSaved={onSaved} />
-      )}
-    </Shell>
+    open && <ClientForm key={client?.id ?? "__new"} client={client} audience={audience} owners={owners} apiBase={apiBase} onClose={onClose} onSaved={onSaved} />
   );
 }
 
@@ -290,6 +272,8 @@ function ClientForm({
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const text = (set: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => set(e.target.value);
+
   async function submit(ev: FormEvent) {
     ev.preventDefault();
     setErr("");
@@ -316,98 +300,78 @@ function ClientForm({
       body.fee = f;
     }
     setBusy(true);
-    const e = client
-      ? await send(`${apiBase}/clients`, "PATCH", { id: client.id, ...body })
-      : await send(`${apiBase}/clients`, "POST", body);
+    const e = client ? await send(`${apiBase}/clients`, "PATCH", { id: client.id, ...body }) : await send(`${apiBase}/clients`, "POST", body);
     setBusy(false);
     if (e) return setErr(e);
-    toast.success("Cliente salvo");
+    toast.success("Cliente salvo", { description: name.trim() });
     onSaved();
     onClose();
   }
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <Field label="Nome" htmlFor="c-name">
-        <input id="c-name" type="text" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} className={fieldInput} />
-      </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Dono" htmlFor="c-owner">
-          <input id="c-owner" type="text" list="placar-owner-list" autoComplete="off" placeholder="Sem dono" value={owner} onChange={(e) => setOwner(e.target.value)} className={fieldInput} />
-          <datalist id="placar-owner-list">
-            {owners.map((o) => (
-              <option key={o} value={o} />
-            ))}
-          </datalist>
-        </Field>
-        {finance && (
-          <Field label="Mensalidade (R$)" htmlFor="c-fee">
-            <input id="c-fee" type="text" inputMode="decimal" autoComplete="off" value={fee} onChange={(e) => setFee(e.target.value)} className={fieldInput} />
-          </Field>
-        )}
-      </div>
-      <Check id="c-owner-ok" checked={ownerOk} onChange={setOwnerOk}>
-        Dono confirmado na reunião
-      </Check>
-      <Field label="O que a COB entrega" htmlFor="c-delivers">
-        <input id="c-delivers" type="text" autoComplete="off" value={delivers} onChange={(e) => setDelivers(e.target.value)} className={fieldInput} />
-      </Field>
-      <Field label="Tipo" htmlFor="c-kind">
-        <select id="c-kind" value={kind} onChange={(e) => setKind(e.target.value as ClientKind)} className={fieldInput}>
+    <Modal
+      open
+      onClose={onClose}
+      title={client ? `Editar: ${client.name}` : "Novo cliente"}
+      footer={
+        <>
+          <Button onClick={onClose}>Cancelar</Button>
+          <Button type="submit" form="placar-client-form" variant="primary" pending={busy}>
+            Salvar
+          </Button>
+        </>
+      }
+    >
+      <form id="placar-client-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <Field id="c-name" label="Nome" type="text" autoComplete="off" value={name} onChange={text(setName)} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Field id="c-owner" label="Dono" type="text" list="placar-owner-list" autoComplete="off" placeholder="Sem dono" value={owner} onChange={text(setOwner)} />
+            <datalist id="placar-owner-list">
+              {owners.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
+          </div>
+          {finance && <Field id="c-fee" label="Mensalidade (R$)" type="text" inputMode="decimal" autoComplete="off" value={fee} onChange={text(setFee)} />}
+        </div>
+        <Check id="c-owner-ok" checked={ownerOk} onChange={setOwnerOk}>
+          Dono confirmado na reunião
+        </Check>
+        <Field id="c-delivers" label="O que a COB entrega" type="text" autoComplete="off" value={delivers} onChange={text(setDelivers)} />
+        <Field id="c-kind" label="Tipo" as="select" value={kind} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setKind(e.target.value as ClientKind)}>
           <option value="resultado">Recorrente, nota pelo resultado</option>
           <option value="projeto">Projeto, nota pelo marco no prazo</option>
-        </select>
-      </Field>
-      {kind !== "projeto" && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Meta (número)" htmlFor="c-meta-value">
-              <input id="c-meta-value" type="text" inputMode="decimal" autoComplete="off" value={metaValue} onChange={(e) => setMetaValue(e.target.value)} className={fieldInput} />
-            </Field>
-            <Field label="Do quê" htmlFor="c-meta-label">
-              <input id="c-meta-label" type="text" autoComplete="off" placeholder="vendas, matrículas, R$ em vendas" value={metaLabel} onChange={(e) => setMetaLabel(e.target.value)} className={fieldInput} />
-            </Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Por" htmlFor="c-meta-period">
-              <select id="c-meta-period" value={metaPeriod} onChange={(e) => setMetaPeriod(e.target.value as MetaPeriod)} className={fieldInput}>
+        </Field>
+        {kind !== "projeto" && (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="c-meta-value" label="Meta (número)" type="text" inputMode="decimal" autoComplete="off" value={metaValue} onChange={text(setMetaValue)} />
+              <Field id="c-meta-label" label="Do quê" type="text" autoComplete="off" placeholder="vendas, matrículas, R$ em vendas" value={metaLabel} onChange={text(setMetaLabel)} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="c-meta-period" label="Por" as="select" value={metaPeriod} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMetaPeriod(e.target.value as MetaPeriod)}>
                 <option value="mes">mês</option>
                 <option value="semana">semana</option>
                 <option value="dia">dia</option>
-              </select>
-            </Field>
-            <Field label="Tipo de meta" htmlFor="c-meta-mode">
-              <select id="c-meta-mode" value={metaMode} onChange={(e) => setMetaMode(e.target.value as MetaMode)} className={fieldInput}>
+              </Field>
+              <Field id="c-meta-mode" label="Tipo de meta" as="select" value={metaMode} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMetaMode(e.target.value as MetaMode)}>
                 <option value="soma">Quantidade (soma)</option>
                 <option value="taxa">Taxa, maior é melhor (ROAS)</option>
                 <option value="custo">Custo, menor é melhor (CPA)</option>
-              </select>
-            </Field>
-          </div>
-        </>
-      )}
-      <Field label="Observação da meta" htmlFor="c-meta-note">
-        <input id="c-meta-note" type="text" autoComplete="off" value={metaNote} onChange={(e) => setMetaNote(e.target.value)} className={fieldInput} />
-      </Field>
-      <Check id="c-meta-review" checked={metaReview} onChange={setMetaReview}>
-        Meta precisa ser revisada com o cliente
-      </Check>
-      <Check id="c-active" checked={active} onChange={setActive}>
-        Cliente ativo (desmarque para tirar do placar)
-      </Check>
-      {err && (
-        <p role="alert" className="text-[13px] text-red-400">
-          {err}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <button type="button" onClick={onClose} className={btnGhost}>
-          Cancelar
-        </button>
-        <button type="submit" disabled={busy} className={btnPrimary}>
-          {busy ? "Salvando…" : "Salvar"}
-        </button>
-      </div>
-    </form>
+              </Field>
+            </div>
+          </>
+        )}
+        <Field id="c-meta-note" label="Observação da meta" type="text" autoComplete="off" value={metaNote} onChange={text(setMetaNote)} />
+        <Check id="c-meta-review" checked={metaReview} onChange={setMetaReview}>
+          Meta precisa ser revisada com o cliente
+        </Check>
+        <Check id="c-active" checked={active} onChange={setActive}>
+          Cliente ativo (desmarque para tirar do placar)
+        </Check>
+        {err && <Notice tone="bad">{err}</Notice>}
+      </form>
+    </Modal>
   );
 }

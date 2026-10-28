@@ -21,12 +21,12 @@ import {
   type Tone,
 } from "@/lib/placar/score";
 import { Trophy } from "lucide-react";
-import { Button, CONTAINER } from "@/components/ui";
+import { AnimatePresence, motion } from "motion/react";
+import { Button, CONTAINER, Empty, Label, Metric, Modal, Notice, Pill, Score as Ring, SectionTitle, Skeleton, Surface, Trail, fmtScore as fmtRing, spring } from "@/components/ui";
 import { PageHeader } from "./PageHeader";
 import { roundOf, SEASON } from "@/lib/placar/rodada-rules";
 import type { Audience, BoardClient, PlacarEntry, PlacarSnapshot } from "@/lib/placar/types";
 import { ClientDialog, EntryDialog } from "./PlacarDialogs";
-import { btnGhost, btnPrimary, TONE_STYLE } from "./tones";
 
 const OWNERS = ["Matheus", "Ramon", "Israel", "Sayuri"];
 const REFRESH_MS = 30_000;
@@ -35,7 +35,8 @@ const TONES: Tone[] = ["good", "warn", "bad", "none"];
 interface Row {
   c: BoardClient;
   s: Score;
-  spark: (number | null)[];
+  /** Últimas 8 semanas, a mais antiga primeiro. */
+  trail: { final: number | null; tone: Tone }[];
 }
 
 type LoadState = "loading" | "ok" | "error" | "auth";
@@ -53,6 +54,8 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 
   const [data, setData] = useState<PlacarSnapshot | null>(null);
   const [state, setState] = useState<LoadState>("loading");
+  const [refreshing, setRefreshing] = useState(false);
+  const [sheet, setSheet] = useState<Row | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [owner, setOwner] = useState("__all");
   const [showInactive, setShowInactive] = useState(false);
@@ -63,6 +66,7 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
   const load = useCallback(async () => {
     if (!week) return;
     const mine = ++seq.current;
+    setRefreshing(true);
     try {
       const res = await fetch(`${apiBase}?from=${addWeeks(week, -12)}`, { cache: "no-store" });
       const body = await res.json().catch(() => null);
@@ -82,6 +86,8 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
       if (mine !== seq.current) return;
       setErrorMsg("Sem conexão com o servidor.");
       setState("error");
+    } finally {
+      if (mine === seq.current) setRefreshing(false);
     }
   }, [apiBase, week]);
 
@@ -109,7 +115,14 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
     const sparkWeeks = weeksBack(week, 8);
     return data.clients.map((c) => {
       const list = by.get(c.id) ?? [];
-      return { c, s: scoreFor(c, week, list), spark: sparkWeeks.map((w) => scoreFor(c, w, list).final) };
+      return {
+        c,
+        s: scoreFor(c, week, list),
+        trail: sparkWeeks.map((w) => {
+          const x = scoreFor(c, w, list);
+          return { final: x.final, tone: x.tone };
+        }),
+      };
     });
   }, [data, week]);
 
@@ -162,7 +175,7 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
           week={{
             ariaLabel: "Semana do placar",
             label: week ? weekLabel(week) : "…",
-            hint: !week || !closed ? "semana lida" : week === closed ? "última semana fechada" : week > closed ? "semana em andamento" : "semana lida",
+            hint: refreshing && data ? "atualizando…" : !week || !closed ? "semana lida" : week === closed ? "última semana fechada" : week > closed ? "semana em andamento" : "semana lida",
             onPrev: () => week && go(addWeeks(week, -1)),
             onNext: () => week && go(addWeeks(week, 1)),
             prevDisabled: !week,
@@ -190,31 +203,27 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
           }
         />
 
-        {data?.store === "file" && (
-          <p className="rounded-lg border border-sky-400/20 bg-sky-400/[0.05] px-4 py-2.5 font-mono text-[12px] leading-relaxed text-sky-300/90">
-            Dados locais de desenvolvimento (arquivo no computador). Nada daqui chega ao time.
-          </p>
-        )}
+        {data?.store === "file" && <Notice tone="info">Dados locais de desenvolvimento (arquivo no computador). Nada daqui chega ao time.</Notice>}
 
         {state === "auth" && (
-          <Notice tone="warn" title="Sua sessão expirou">
+          <Notice tone="warn" title="Sua sessão expirou" action={<Button size="sm" onClick={() => window.location.reload()}>Entrar de novo</Button>}>
             Recarregue a página para entrar de novo.
           </Notice>
         )}
         {state === "error" && (
-          <Notice tone="bad" title={data ? "Não deu para atualizar o placar agora" : "Não deu para ler o placar"}>
-            {errorMsg} {data ? "Mostrando a última leitura. Tento de novo em 30 segundos." : "Recarregue a página em instantes."}
+          <Notice tone="bad" title={data ? "Não deu para atualizar o placar agora" : "Não deu para ler o placar"} action={<Button size="sm" variant="danger" onClick={load}>Tentar de novo</Button>}>
+            {errorMsg} {data ? "Mostrando a última leitura." : ""}
           </Notice>
         )}
 
         {!data ? (
-          state === "loading" && <Empty>Carregando o placar…</Empty>
+          state === "loading" && <PlacarSkeleton />
         ) : (
           <>
             <Summary rows={active} finance={finance} />
 
             <section aria-label="Donos" className="flex flex-col gap-3">
-              <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Donos</h2>
+              <Label as="p">Donos</Label>
               <div className="flex flex-wrap gap-2">
                 {[...ownerGroups.entries()].map(([key, g]) => (
                   <OwnerChip
@@ -230,54 +239,48 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
             </section>
 
             <section aria-label="Clientes" className="flex flex-col gap-3">
-              <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">
-                {selectedOwner === "__all" ? "Clientes" : `Clientes de ${ownerGroups.get(selectedOwner)?.name ?? ""}`} ({list.length})
-              </h2>
+              <SectionTitle
+                title={selectedOwner === "__all" ? "Clientes" : `Clientes de ${ownerGroups.get(selectedOwner)?.name ?? ""}`}
+                hint={`${list.length} ${list.length === 1 ? "cliente" : "clientes"}${inactiveCount > 0 ? ` · ${plural(inactiveCount, "inativo", "inativos")} fora da conta` : ""}`}
+                right={
+                  inactiveCount > 0 ? (
+                    <Button variant="link" size="sm" onClick={() => setShowInactive((v) => !v)}>
+                      {showInactive ? "Esconder inativos" : "Mostrar inativos"}
+                    </Button>
+                  ) : undefined
+                }
+              />
 
-              <div
-                aria-hidden
-                className={`hidden gap-3 px-4 font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-zinc-600 xl:grid ${finance ? GRID_FINANCE : GRID_TEAM}`}
-              >
-                <span>Nota</span>
-                <span>Cliente</span>
-                <span>Dono</span>
-                <span>Meta</span>
-                <span>Resultado 4 sem.</span>
-                <span>Cliente</span>
-                <span>8 semanas</span>
-                {finance && <span className="text-right">Mensalidade</span>}
+              <div aria-hidden className={`hidden gap-3 px-4 xl:grid ${finance ? GRID_FINANCE : GRID_TEAM}`}>
+                <Label>Nota</Label>
+                <Label>Cliente</Label>
+                <Label>Dono</Label>
+                <Label>Meta</Label>
+                <Label>Resultado 4 sem.</Label>
+                <Label>Cliente</Label>
+                <Label>8 semanas</Label>
+                {finance && <Label className="text-right">Mensalidade</Label>}
                 <span />
               </div>
 
               {!data.clients.length ? (
-                <Empty>Nenhum cliente no placar ainda. Use “Novo cliente” para cadastrar o primeiro.</Empty>
+                <Empty
+                  title="Nenhum cliente no placar ainda"
+                  text="Cadastre o primeiro para começar a lançar números."
+                  action={<Button variant="primary" onClick={() => setClientDlg({ client: null })}>Novo cliente</Button>}
+                />
               ) : !list.length ? (
-                <Empty>Nenhum cliente com esse dono.</Empty>
+                <Empty title="Nenhum cliente com esse dono" action={<Button onClick={() => setOwner("__all")}>Ver todos</Button>} />
               ) : (
-                <div className="flex flex-col gap-2">
-                  {list.map((r) => (
-                    <ClientRow
-                      key={r.c.id}
-                      row={r}
-                      finance={finance}
-                      onEntry={() => setEntryClient(r.c)}
-                      onEdit={() => setClientDlg({ client: r.c })}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {inactiveCount > 0 && (
-                <p className="text-[13px] text-zinc-500">
-                  {inactiveCount} {inactiveCount === 1 ? "cliente inativo fora" : "clientes inativos fora"} da conta.{" "}
-                  <button
-                    type="button"
-                    onClick={() => setShowInactive((v) => !v)}
-                    className="font-semibold text-[#00e5ff] underline underline-offset-4"
-                  >
-                    {showInactive ? "Esconder" : "Mostrar"}
-                  </button>
-                </p>
+                <ul className="flex flex-col gap-1.5">
+                  <AnimatePresence initial={false}>
+                    {list.map((r) => (
+                      <motion.li key={r.c.id} layout="position" transition={spring} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        <ClientRow row={r} finance={finance} onEntry={() => setEntryClient(r.c)} onEdit={() => setClientDlg({ client: r.c })} onScore={() => setSheet(r)} />
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
+                </ul>
               )}
             </section>
           </>
@@ -285,6 +288,8 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 
         <Rule />
       </div>
+
+      <ScoreSheet row={sheet} onClose={() => setSheet(null)} />
 
       {week && (
         <EntryDialog
@@ -312,47 +317,40 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 // ---------- partes ----------
 
 const GRID_TEAM =
-  "xl:grid-cols-[60px_minmax(170px,1.6fr)_104px_minmax(120px,1fr)_minmax(130px,1.1fr)_56px_108px_150px]";
+  "xl:grid-cols-[44px_minmax(170px,1.6fr)_104px_minmax(120px,1fr)_minmax(130px,1.1fr)_48px_84px_150px]";
 const GRID_FINANCE =
-  "xl:grid-cols-[60px_minmax(170px,1.6fr)_96px_minmax(110px,1fr)_minmax(120px,1fr)_56px_108px_96px_150px]";
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-dashed border-white/10 px-5 py-8 text-center text-[14px] text-zinc-500">
-      {children}
-    </div>
-  );
-}
-
-function Notice({ tone, title, children }: { tone: "warn" | "bad"; title: string; children: React.ReactNode }) {
-  const cls =
-    tone === "bad"
-      ? "border-red-500/25 bg-red-500/[0.06] text-red-400"
-      : "border-amber-400/20 bg-amber-400/[0.05] text-amber-300";
-  return (
-    <div role="status" className={`rounded-xl border px-5 py-3.5 ${cls}`}>
-      <p className="text-[13.5px] font-medium">{title}</p>
-      <p className="mt-1 text-[12.5px] leading-relaxed opacity-80">{children}</p>
-    </div>
-  );
-}
-
-function Kpi({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "bad" }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-white/8 bg-white/[0.015] px-4 py-3.5">
-      <span className="text-[12.5px] font-medium text-zinc-400">{label}</span>
-      <span
-        className={`font-mono text-[26px] font-semibold leading-tight tracking-[-0.02em] tabular-nums ${tone === "bad" ? "text-red-400" : "text-white"}`}
-      >
-        {value}
-      </span>
-      <span className="text-[12px] text-zinc-500">{sub}</span>
-    </div>
-  );
-}
+  "xl:grid-cols-[44px_minmax(170px,1.6fr)_96px_minmax(110px,1fr)_minmax(120px,1fr)_48px_84px_96px_150px]";
 
 const feeOf = (r: Row) => (isNum(r.c.fee) ? r.c.fee : 0);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+function PlacarSkeleton() {
+  return (
+    <div className="flex flex-col gap-7" aria-busy aria-label="Carregando o placar">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Surface key={i} className="flex flex-col gap-2 p-4">
+            <Skeleton className="w-24" />
+            <Skeleton shape="metric" />
+            <Skeleton className="w-32" />
+          </Surface>
+        ))}
+      </div>
+      <Skeleton shape="text" lines={1} className="w-40" />
+      <div className="flex flex-col gap-1.5">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Surface key={i} className="flex items-center gap-3 px-4 py-3">
+            <Skeleton shape="ring" />
+            <Skeleton lines={2} className="w-48" />
+          </Surface>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SEG: Record<Tone, string> = { good: "bg-good", warn: "bg-warn", bad: "bg-bad", none: "bg-none" };
+const TONE_LABEL: Record<Tone, string> = { good: "Verde", warn: "Amarelo", bad: "Vermelho", none: "Cinza" };
 
 function Summary({ rows, finance }: { rows: Row[]; finance: boolean }) {
   if (!rows.length) return null;
@@ -365,38 +363,48 @@ function Summary({ rows, finance }: { rows: Row[]; finance: boolean }) {
   const scored = rows.filter((r) => r.s.final !== null);
   const avg = scored.length ? mean(scored.map((r) => r.s.final as number)) : null;
   const totalFee = rows.reduce((s, r) => s + feeOf(r), 0);
+  const brl = (n: number) => fmtBRL(n);
 
   return (
-    <section aria-label="Resumo da carteira" className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-      {finance ? (
-        <>
-          <Kpi label="Mensalidade em risco" value={fmtBRL(fee.bad)} sub={`${plural(cnt.bad, "cliente", "clientes")} no vermelho`} tone="bad" />
-          <Kpi label="Sem leitura" value={fmtBRL(fee.none)} sub={`${plural(cnt.none, "cliente", "clientes")} sem meta ou sem número`} />
-          <Kpi label="Nota média da carteira" value={avg === null ? "s/ nota" : fmtScore(avg)} sub={`${scored.length} de ${rows.length} com nota`} />
-          <Kpi label="Mensalidade no placar" value={fmtBRL(totalFee)} sub={`${plural(rows.length, "cliente ativo", "clientes ativos")}`} />
-        </>
-      ) : (
-        <>
-          <Kpi label="No vermelho" value={String(cnt.bad)} sub={cnt.bad === 1 ? "cliente longe da meta" : "clientes longe da meta"} tone="bad" />
-          <Kpi label="Sem leitura" value={String(cnt.none)} sub="sem meta ou sem número" />
-          <Kpi label="Nota média da carteira" value={avg === null ? "s/ nota" : fmtScore(avg)} sub={`${scored.length} de ${rows.length} com nota`} />
-          <Kpi label="Clientes no placar" value={String(rows.length)} sub="ativos nesta semana" />
-        </>
-      )}
+    <section aria-label="Resumo da carteira" className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        {finance ? (
+          <>
+            <Surface className="p-4"><Metric size="lg" value={fee.bad} format={brl} label="Mensalidade em risco" sub={`${plural(cnt.bad, "cliente", "clientes")} no vermelho`} tone={cnt.bad ? "bad" : undefined} /></Surface>
+            <Surface className="p-4"><Metric size="lg" value={fee.none} format={brl} label="Sem leitura" sub={`${plural(cnt.none, "cliente", "clientes")} sem meta ou sem número`} /></Surface>
+            <Surface className="p-4"><Metric size="lg" value={avg} format={fmtScore} label="Nota média da carteira" sub={`${scored.length} de ${rows.length} com nota`} tone={avg === null ? undefined : toneOf(avg)} /></Surface>
+            <Surface className="p-4"><Metric size="lg" value={totalFee} format={brl} label="Mensalidade no placar" sub={plural(rows.length, "cliente ativo", "clientes ativos")} /></Surface>
+          </>
+        ) : (
+          <>
+            <Surface className="p-4"><Metric size="lg" value={cnt.bad} label="No vermelho" sub={cnt.bad === 1 ? "cliente longe da meta" : "clientes longe da meta"} tone={cnt.bad ? "bad" : undefined} /></Surface>
+            <Surface className="p-4"><Metric size="lg" value={cnt.none} label="Sem leitura" sub="sem meta ou sem número" /></Surface>
+            <Surface className="p-4"><Metric size="lg" value={avg} format={fmtScore} label="Nota média da carteira" sub={`${scored.length} de ${rows.length} com nota`} tone={avg === null ? undefined : toneOf(avg)} /></Surface>
+            <Surface className="p-4"><Metric size="lg" value={cnt.good} unit={`${Math.round((cnt.good / rows.length) * 100)}%`} label="No verde" sub="meta do time 70%" tone={cnt.good ? "good" : undefined} /></Surface>
+          </>
+        )}
+      </div>
 
-      <div className="col-span-2 flex flex-col gap-2 lg:col-span-4">
-        <div role="img" aria-label="Distribuição de cores" className="flex h-3 overflow-hidden rounded-full bg-white/[0.04]">
+      <div className="flex flex-col gap-2">
+        <div role="img" aria-label="Distribuição de cores" className="flex h-2 gap-px overflow-hidden rounded-full bg-line">
           {TONES.map((t) =>
-            cnt[t] ? <span key={t} className={TONE_STYLE[t].solid} style={{ width: `${(cnt[t] / rows.length) * 100}%` }} /> : null,
+            cnt[t] ? (
+              <motion.span
+                key={t}
+                className={`h-full ${SEG[t]}`}
+                initial={false}
+                animate={{ width: `${(cnt[t] / rows.length) * 100}%` }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              />
+            ) : null,
           )}
         </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px] text-zinc-400">
+        <div className="flex flex-wrap gap-2">
           {TONES.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1.5">
-              <i aria-hidden className={`inline-block size-2.5 rounded-full ${TONE_STYLE[t].solid}`} />
-              {TONE_STYLE[t].label} <b className="font-mono font-semibold text-white">{cnt[t]}</b>
-              {finance && <span className="font-mono text-zinc-500">{fmtBRL(fee[t])}</span>}
-            </span>
+            <Pill key={t} tone={t}>
+              {TONE_LABEL[t]} <span className="tabular-nums">{cnt[t]}</span>
+              {finance && <span className="font-normal opacity-80">{fmtBRL(fee[t])}</span>}
+            </Pill>
           ))}
         </div>
       </div>
@@ -404,154 +412,107 @@ function Summary({ rows, finance }: { rows: Row[]; finance: boolean }) {
   );
 }
 
-function OwnerChip({
-  name,
-  rows,
-  finance,
-  pressed,
-  onClick,
-}: {
-  name: string;
-  rows: Row[];
-  finance: boolean;
-  pressed: boolean;
-  onClick: () => void;
-}) {
+function OwnerChip({ name, rows, finance, pressed, onClick }: { name: string; rows: Row[]; finance: boolean; pressed: boolean; onClick: () => void }) {
   const scored = rows.filter((r) => r.s.final !== null);
   const a = scored.length ? mean(scored.map((r) => r.s.final as number)) : null;
-  const t = TONE_STYLE[toneOf(a)];
   const reds = rows.filter((r) => r.s.tone === "bad");
   const carry = rows.reduce((s, r) => s + feeOf(r), 0);
   const redFee = reds.reduce((s, r) => s + feeOf(r), 0);
   return (
-    <button
+    <Surface
+      as="button"
+      interactive
+      level={pressed ? 2 : 1}
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`flex items-center gap-2.5 rounded-xl border bg-white/[0.015] px-3 py-2 text-left transition hover:border-white/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00e5ff] ${
-        pressed ? "border-[#00e5ff] shadow-[inset_0_0_0_1px_#00e5ff]" : "border-white/10"
-      }`}
+      className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-left ${pressed ? "border-line-strong" : ""}`}
     >
-      <span className={`min-w-[38px] rounded-md px-1.5 py-1 text-center font-mono text-[14px] font-semibold ${t.text} ${t.soft}`}>
-        {a === null ? "s/n" : fmtScore(a)}
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className="text-[14px] font-semibold text-white">{name}</span>
-        <span className="text-[11.5px] text-zinc-500">
+      <Ring value={a} tone={toneOf(a)} size={32} label={`${name}: ${a === null ? "sem nota" : `nota ${fmtRing(a)}`}`} />
+      <span className="flex flex-col">
+        <span className="type-body font-semibold text-fg">{name}</span>
+        <span className="type-caption text-dim">
           {plural(rows.length, "cliente", "clientes")}
-          {reds.length ? ` · ${reds.length} no vermelho` : ""}
+          {reds.length ? <span className="text-bad"> · {reds.length} no vermelho</span> : ""}
         </span>
         {finance && (
-          <span className="font-mono text-[11px] text-zinc-500">
-            {fmtBRL(carry)} carrega{redFee ? <span className="text-red-400"> · {fmtBRL(redFee)} no vermelho</span> : null}
+          <span className="type-caption tabular-nums text-dim">
+            {fmtBRL(carry)}
+            {redFee ? <span className="text-bad"> · {fmtBRL(redFee)} no vermelho</span> : null}
           </span>
         )}
       </span>
-    </button>
-  );
-}
-
-function Spark({ vals }: { vals: (number | null)[] }) {
-  const w = 100;
-  const h = 26;
-  const step = w / (vals.length - 1);
-  const y = (v: number) => h - 3 - (v / 10) * (h - 6);
-  let d = "";
-  let pen = false;
-  vals.forEach((v, i) => {
-    if (v === null) {
-      pen = false;
-      return;
-    }
-    d += `${pen ? "L" : "M"}${(i * step).toFixed(1)} ${y(v).toFixed(1)} `;
-    pen = true;
-  });
-  const last = vals.map((v, i) => (v === null ? -1 : i)).filter((i) => i >= 0).pop();
-  return (
-    <svg width={w} height={h} viewBox={`-3 0 ${w + 6} ${h}`} aria-hidden className="block">
-      <line x1={0} x2={w} y1={y(7)} y2={y(7)} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 3" />
-      <line x1={0} x2={w} y1={y(4)} y2={y(4)} stroke="rgba(255,255,255,0.12)" strokeDasharray="2 3" />
-      {d && <path d={d} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />}
-      {last !== undefined && <circle cx={(last * step).toFixed(1)} cy={y(vals[last] as number).toFixed(1)} r={2.6} fill="currentColor" />}
-    </svg>
+    </Surface>
   );
 }
 
 function CellLabel({ children }: { children: React.ReactNode }) {
-  return <span className="block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-600 xl:hidden">{children}</span>;
+  return <Label as="span" className="block xl:hidden">{children}</Label>;
 }
 
+const dim = (t: string) => <span className="type-caption text-dim">{t}</span>;
+
 function resultNode(c: BoardClient, s: Score) {
-  const small = (t: string) => <span className="text-[12px] text-zinc-500">{t}</span>;
-  if (c.kind === "projeto") return s.res === null ? small("sem marco lançado") : s.res === 10 ? "marco no prazo" : "marco atrasado";
-  if (s.reason === "sem meta") return small("combinar a meta");
-  if (!s.weeks) return small("nenhum número lançado");
+  if (c.kind === "projeto") return s.res === null ? dim("sem marco lançado") : s.res === 10 ? "marco no prazo" : "marco atrasado";
+  if (s.reason === "sem meta") return dim("combinar a meta");
+  if (!s.weeks) return dim("nenhum número lançado");
   if (c.meta_mode === "taxa" || c.meta_mode === "custo")
     return (
       <>
-        <span className="font-mono tabular-nums">{fmt2(s.avg ?? 0)}</span> {small("média")}
+        <span className="tabular-nums">{fmt2(s.avg ?? 0)}</span> {dim("média")}
       </>
     );
   return (
     <>
-      <span className="font-mono tabular-nums">{fmt2(s.sum)}</span> {small(`de ${fmt1((s.mw ?? 0) * s.weeks)} · ${s.weeks} sem.`)}
+      <span className="tabular-nums">{fmt2(s.sum)}</span> {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)} · ${s.weeks} sem.`)}
     </>
   );
 }
 
 function ClientRow({
-  row: { c, s, spark },
+  row: { c, s, trail },
   finance,
   onEntry,
   onEdit,
+  onScore,
 }: {
   row: Row;
   finance: boolean;
   onEntry: () => void;
   onEdit: () => void;
+  onScore: () => void;
 }) {
-  const t = TONE_STYLE[s.tone];
   const owner = c.owner.trim();
   const mt = metaText(c);
-  const chips: { text: string; warn?: boolean }[] = [];
-  if (c.active === false) chips.push({ text: "inativo" });
-  if (c.meta_review) chips.push({ text: "meta a revisar", warn: true });
-  if (c.kind === "projeto") chips.push({ text: "projeto" });
-  if (s.final !== null && !s.hasW) chips.push({ text: "falta lançar esta semana", warn: true });
+  const chips: { text: string; tone: "warn" | "neutral" }[] = [];
+  if (c.active === false) chips.push({ text: "inativo", tone: "neutral" });
+  if (c.meta_review) chips.push({ text: "meta a revisar", tone: "warn" });
+  if (c.kind === "projeto") chips.push({ text: "projeto", tone: "neutral" });
+  const needsEntry = c.kind === "projeto" ? s.res === null : !s.hasW;
 
   return (
-    <article
-      className={`relative grid grid-cols-[52px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 rounded-xl border border-white/8 bg-[#0f0f0f] px-4 py-3 xl:items-center xl:gap-y-0 ${finance ? GRID_FINANCE : GRID_TEAM}`}
+    <Surface
+      as="article"
+      className={`relative grid grid-cols-[44px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 overflow-hidden px-4 py-2.5 xl:items-center xl:gap-y-0 ${s.tone === "bad" ? "before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-r before:bg-bad before:content-['']" : ""} ${finance ? GRID_FINANCE : GRID_TEAM}`}
     >
-      <span aria-hidden className={`absolute -left-px bottom-2.5 top-2.5 w-[3px] rounded-r ${t.solid}`} />
-
-      <div className="col-start-1 row-start-1 xl:col-auto xl:row-auto">
-        {s.final === null ? (
-          <span className={`grid h-11 w-[52px] place-items-center rounded-lg px-1 text-center text-[10.5px] leading-tight ${t.text} ${t.soft}`}>
-            {s.reason || "sem nota"}
-          </span>
-        ) : (
-          <span
-            title={`Resultado ${s.res === null ? "s/n" : fmtScore(s.res)}${s.cs === null ? "" : ` · cliente ${fmtScore(s.cs)}`}`}
-            className={`grid h-11 w-[52px] place-items-center rounded-lg font-mono text-[18px] font-semibold ${t.text} ${t.soft}`}
-          >
-            {fmtScore(s.final)}
-          </span>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onScore}
+        aria-label={`Como saiu a nota de ${c.name}`}
+        className="col-start-1 row-start-1 rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent xl:col-auto xl:row-auto"
+      >
+        <Ring value={s.final} tone={s.tone} size={40} />
+      </button>
 
       <div className={`row-start-1 flex min-w-0 flex-col gap-0.5 xl:col-auto xl:row-auto ${finance ? "col-start-2" : "col-span-2 col-start-2 xl:col-span-1"}`}>
-        <strong className="text-[15px] font-semibold leading-snug text-white [overflow-wrap:anywhere]">{c.name}</strong>
-        {c.delivers && <span className="text-[12.5px] text-zinc-500 [overflow-wrap:anywhere]">{c.delivers}</span>}
+        <strong className="type-subtitle text-fg [overflow-wrap:anywhere]">{c.name}</strong>
+        {c.delivers && <span className="type-caption text-dim [overflow-wrap:anywhere]">{c.delivers}</span>}
         {chips.length > 0 && (
           <span className="mt-1 flex flex-wrap gap-1">
             {chips.map((ch) => (
-              <span
-                key={ch.text}
-                className={`whitespace-nowrap rounded-full border px-2 py-px text-[11px] ${ch.warn ? "border-amber-300/40 text-amber-300" : "border-white/10 text-zinc-400"}`}
-              >
+              <Pill key={ch.text} tone={ch.tone} className="h-5 px-2">
                 {ch.text}
-              </span>
+              </Pill>
             ))}
           </span>
         )}
@@ -559,80 +520,105 @@ function ClientRow({
 
       {/* No celular e no tablet os três ficam numa faixa; no xl viram colunas da tabela. */}
       <div className="col-span-3 grid gap-2.5 sm:grid-cols-3 sm:gap-4 xl:contents">
-        <div className="min-w-0 text-[13.5px] text-zinc-200">
+        <div className="min-w-0 type-body text-fg">
           <CellLabel>Dono</CellLabel>
-          {owner || <span className="text-[12px] text-zinc-500">sem dono</span>}
-          {owner && !c.owner_ok && (
-            <span className="ml-1.5 rounded-full border border-white/10 px-1.5 py-px text-[10.5px] text-zinc-500">palpite</span>
-          )}
+          {owner || dim("sem dono")}
+          {owner && !c.owner_ok && <Pill className="ml-1.5 h-5 px-1.5 font-medium">palpite</Pill>}
         </div>
 
-        <div className="min-w-0 text-[13.5px] text-zinc-200 [overflow-wrap:anywhere]">
+        <div className="min-w-0 type-body text-fg [overflow-wrap:anywhere]">
           <CellLabel>Meta</CellLabel>
-          {c.kind === "projeto" ? (
-            <span className="text-[12px] text-zinc-500">marco no prazo</span>
-          ) : mt ? (
-            mt
-          ) : (
-            <span className="text-[12px] text-zinc-500">sem meta</span>
-          )}
-          {c.meta_note && <span className="block text-[12px] leading-snug text-zinc-500">{c.meta_note}</span>}
+          {c.kind === "projeto" ? dim("marco no prazo") : mt ? mt : dim("sem meta")}
+          {c.meta_note && <span className="block type-caption text-dim">{c.meta_note}</span>}
         </div>
 
-        <div className="min-w-0 text-[13.5px] text-zinc-200">
+        <div className="min-w-0 type-body text-fg">
           <CellLabel>Resultado 4 sem.</CellLabel>
           {resultNode(c, s)}
         </div>
       </div>
 
-      <div className="hidden font-mono text-[14px] tabular-nums text-zinc-200 xl:block">
-        {s.cs === null ? <span className="text-[12px] text-zinc-500">s/n</span> : fmtScore(s.cs)}
-      </div>
+      <div className="hidden type-body tabular-nums text-fg xl:block">{s.cs === null ? dim("s/n") : fmtScore(s.cs)}</div>
 
-      <div className={`hidden xl:block ${t.text}`}>
-        <Spark vals={spark} />
+      <div className="hidden xl:block">
+        <Trail tones={trail.map((x) => x.tone)} scores={trail.map((x) => x.final)} label={`Últimas 8 semanas de ${c.name}`} />
       </div>
 
       {finance && (
-        <div className="col-start-3 row-start-1 text-right font-mono text-[13.5px] tabular-nums text-zinc-200 xl:col-auto xl:row-auto">
-          {isNum(c.fee) ? fmtBRL(c.fee) : <span className="text-[12px] text-zinc-500">sem valor</span>}
+        <div className="col-start-3 row-start-1 text-right type-body tabular-nums text-fg xl:col-auto xl:row-auto">
+          {isNum(c.fee) ? fmtBRL(c.fee) : dim("sem valor")}
         </div>
       )}
 
-      <div className="col-span-3 flex gap-2 xl:col-span-1 xl:justify-end">
-        <button type="button" onClick={onEntry} className={btnPrimary}>
-          Lançar
-        </button>
-        <button type="button" onClick={onEdit} className={btnGhost}>
-          Editar
-        </button>
+      <div className="col-span-3 flex items-center gap-2 xl:col-span-1 xl:justify-end">
+        {needsEntry ? (
+          <Button size="sm" variant="primary" onClick={onEntry}>
+            Lançar
+          </Button>
+        ) : (
+          <>
+            <Pill tone="good">Lançado</Pill>
+            <Button size="sm" onClick={onEntry}>
+              Editar número
+            </Button>
+          </>
+        )}
+        <Button size="sm" variant={needsEntry ? "ghost" : "link"} onClick={onEdit}>
+          {needsEntry ? "Editar" : "Cliente"}
+        </Button>
       </div>
-    </article>
+    </Surface>
   );
 }
 
+/** Folha com a conta da nota: no toque substitui a dica de hover. */
+function ScoreSheet({ row, onClose }: { row: Row | null; onClose: () => void }) {
+  const s = row?.s;
+  return (
+    <Modal open={row !== null} onClose={onClose} size="sm" title={row ? `Como saiu a nota de ${row.c.name}` : "Nota"}>
+      {row && s && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <Ring value={s.final} tone={s.tone} size={56} />
+            <div className="flex flex-col gap-0.5">
+              <span className="type-subtitle text-fg">{s.final === null ? (s.reason || "sem nota") : `Nota ${fmtScore(s.final)}`}</span>
+              <span className="type-caption text-dim">{TONE_LABEL[s.tone]} · vale a menor entre resultado e nota do cliente</span>
+            </div>
+          </div>
+          <dl className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-0.5"><dt className="type-label text-dim">Resultado contra a meta</dt><dd className="type-subtitle tabular-nums text-fg">{s.res === null ? "s/n" : fmtScore(s.res)}</dd></div>
+            <div className="flex flex-col gap-0.5"><dt className="type-label text-dim">Nota do cliente</dt><dd className="type-subtitle tabular-nums text-fg">{s.cs === null ? "s/n" : fmtScore(s.cs)}</dd></div>
+            <div className="col-span-2 flex flex-col gap-0.5"><dt className="type-label text-dim">Últimas 4 semanas</dt><dd className="type-body text-fg">{resultNode(row.c, s)}</dd></div>
+          </dl>
+          <Trail tones={row.trail.map((x) => x.tone)} scores={row.trail.map((x) => x.final)} size="md" />
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+const P = ({ children }: { children: React.ReactNode }) => <p className="max-w-[68ch] type-body text-mute">{children}</p>;
+const B = ({ children }: { children: React.ReactNode }) => <b className="font-semibold text-fg">{children}</b>;
+
 function Rule() {
   return (
-    <section aria-label="Como a nota sai" className="flex max-w-[760px] flex-col gap-2.5 rounded-xl border border-white/8 bg-white/[0.015] px-5 py-4">
-      <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Como a nota sai</h2>
-      <p className="max-w-[68ch] text-[13.5px] leading-relaxed text-zinc-400">
-        <b className="text-zinc-100">Resultado dividido pela meta, vezes 10, com teto 10.</b> Bater metade da meta dá 5. A
-        conta olha as últimas 4 semanas, então cliente de meta mensal não pula de 0 para 10 de uma semana para outra.
-        Quando a meta é de custo (CPA), a conta inverte.
-      </p>
-      <p className="max-w-[68ch] text-[13.5px] leading-relaxed text-zinc-400">
-        <b className="text-zinc-100">Uma vez por mês o dono pergunta ao cliente uma nota de 0 a 10.</b> Vale a menor das
-        duas, então número bom com cliente insatisfeito não fica verde.
-      </p>
-      <p className="max-w-[68ch] text-[13.5px] leading-relaxed text-zinc-400">
-        <b className="text-zinc-100">Cliente de projeto</b> (site, loja, implantação) tira 10 com o marco entregue no prazo
-        e 0 fora dele.
-      </p>
-      <p className="max-w-[68ch] text-[13.5px] leading-relaxed text-zinc-400">
-        <b className="text-zinc-100">Verde</b> de 7 a 10, <b className="text-zinc-100">amarelo</b> de 4 a 6,9,{" "}
-        <b className="text-zinc-100">vermelho</b> abaixo de 4, <b className="text-zinc-100">cinza</b> sem meta ou sem
-        número. O número da semana entra até segunda, 10h. A decisão sobre cliente e liderança é no fim do trimestre.
-      </p>
+    <section aria-label="Como a nota sai" className="flex max-w-[760px] flex-col gap-3">
+      <SectionTitle title="Como a nota sai" />
+      <P>
+        <B>Resultado dividido pela meta, vezes 10, com teto 10.</B> Bater metade da meta dá 5. A conta olha as últimas 4 semanas, então
+        cliente de meta mensal não pula de 0 para 10 de uma semana para outra. Quando a meta é de custo (CPA), a conta inverte.
+      </P>
+      <P>
+        <B>Uma vez por mês o dono pergunta ao cliente uma nota de 0 a 10.</B> Vale a menor das duas, então número bom com cliente
+        insatisfeito não fica verde.
+      </P>
+      <P>
+        <B>Cliente de projeto</B> (site, loja, implantação) tira 10 com o marco entregue no prazo e 0 fora dele.
+      </P>
+      <P>
+        <B>Verde</B> de 7 a 10, <B>amarelo</B> de 4 a 6,9, <B>vermelho</B> abaixo de 4, <B>cinza</B> sem meta ou sem número. O número da
+        semana entra até segunda, 10h. A decisão sobre cliente e liderança é no fim do trimestre.
+      </P>
     </section>
   );
 }
