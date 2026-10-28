@@ -273,7 +273,7 @@ export default async function Notas({
           : "ambiente de teste (sandbox): nada aqui tem valor fiscal"}
       </div>
 
-      <div className="mx-auto w-full max-w-[1180px] px-6 pb-44 pt-8">
+      <div className="mx-auto w-full max-w-[1280px] px-4 pb-44 pt-8 sm:px-6 lg:px-10">
         <header className="flex flex-wrap items-end justify-between gap-5">
           <div>
             <h1 className="text-[30px] font-bold leading-none tracking-[-0.02em] text-white">

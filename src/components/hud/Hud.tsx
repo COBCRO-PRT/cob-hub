@@ -62,7 +62,7 @@ export function Hud({ pessoa }: { pessoa: HudPessoa }) {
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#07080a]/92 backdrop-blur-md">
-        <div className="flex h-14 w-full items-center gap-3 px-4 sm:gap-5 sm:px-6 lg:px-10">
+        <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center gap-3 px-4 sm:gap-5 sm:px-6 lg:px-10">
           <Link href="/" aria-label="Início" className="shrink-0 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00e5ff]">
             <Logo className="h-[16px]" />
           </Link>

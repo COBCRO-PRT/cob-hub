@@ -14,7 +14,7 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-[#07080a]">
       <TeclasDaHome urls={urls} />
-      <main className="flex flex-col gap-12 pb-24 pt-10">
+      <main className="mx-auto flex w-full max-w-[1280px] flex-col gap-12 pb-24 pt-10">
         <section className="flex flex-col gap-6 px-6 lg:px-10">
           <div>
             <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-500">
@@ -44,7 +44,7 @@ export default async function Home() {
         ))}
       </main>
 
-      <footer className="border-t border-white/[0.07] px-6 py-8 lg:px-10">
+      <footer className="mx-auto w-full max-w-[1280px] border-t border-white/[0.07] px-6 py-8 lg:px-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-zinc-500">
           Quando precisar
         </p>

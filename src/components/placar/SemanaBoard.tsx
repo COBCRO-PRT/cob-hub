@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Award, Play, TrendingUp } from "lucide-react";
+import { Button, CONTAINER } from "@/components/ui";
+import { PageHeader } from "./PageHeader";
 import { LEVELS, POINTS, STREAK } from "@/lib/placar/rodada-rules";
 import type { Mission } from "@/lib/placar/jogo";
 import type { RodadaClient, RodadaTaskInfo, SemanaSnapshot } from "@/lib/placar/rodada";
@@ -197,57 +199,36 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
   };
 
   return (
-    <div className="min-h-screen bg-[#07080a]">
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-7 px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg">
+      <div className={`${CONTAINER} flex flex-col gap-7`}>
 
-        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-          <div className="flex min-w-0 flex-col gap-2">
-            <span className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-              <i aria-hidden className="inline-block size-2.5 rounded-[2px] bg-[#00e5ff]" />
-              COB · gestão por resultado
-            </span>
-            <h1 className="text-[clamp(26px,4vw,34px)] font-extrabold leading-none tracking-[-0.03em] text-white">
-              Rodada da semana
-            </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2" aria-label="Semana da rodada">
-            <button
-              type="button"
-              aria-label="Rodada anterior"
-              disabled={!week}
-              onClick={() => week && setPickedWeek(addWeeks(week, -1))}
-              className={`${btnGhost} size-9 px-0 text-[16px]`}
-            >
-              ‹
-            </button>
-            <div className="flex min-w-[148px] flex-col items-center px-1">
-              <b className="font-mono text-[15px] font-semibold tabular-nums text-white">{week ? weekLabel(week) : "…"}</b>
-              <span className="text-[11.5px] text-zinc-500">
-                {!data ? "…" : data.closed ? `fechada em ${fmtDateTime(data.closedAt ?? "")}` : "prévia, fecha segunda às 10h"}
-              </span>
-            </div>
-            <button
-              type="button"
-              aria-label="Próxima rodada"
-              disabled={!week || !currentMonday || week >= currentMonday}
-              onClick={() => week && setPickedWeek(addWeeks(week, 1))}
-              className={`${btnGhost} size-9 px-0 text-[16px]`}
-            >
-              ›
-            </button>
-            {data?.closed && rows.length > 0 && (
-              <button type="button" onClick={() => openReveal(data.week)} className={`${btnGhost} h-9 gap-1.5`}>
-                <Play aria-hidden className="size-3.5" /> Rever a revelação
-              </button>
-            )}
-            {data?.canClose && (
-              <button type="button" onClick={closeNow} disabled={busy !== null} className={`${btnPrimary} h-9`}>
-                {busy === "close" ? "Fechando…" : "Fechar rodada agora"}
-              </button>
-            )}
-          </div>
-        </header>
+        <PageHeader
+          eyebrow="COB · gestão por resultado"
+          title="Rodada da semana"
+          week={{
+            ariaLabel: "Semana da rodada",
+            label: week ? weekLabel(week) : "…",
+            hint: !data ? "…" : data.closed ? `fechada em ${fmtDateTime(data.closedAt ?? "")}` : "prévia, fecha segunda às 10h",
+            onPrev: () => week && setPickedWeek(addWeeks(week, -1)),
+            onNext: () => week && setPickedWeek(addWeeks(week, 1)),
+            prevDisabled: !week,
+            nextDisabled: !week || !currentMonday || week >= currentMonday,
+          }}
+          actions={
+            <>
+              {data?.closed && rows.length > 0 && (
+                <Button size="sm" onClick={() => openReveal(data.week)} icon={<Play aria-hidden strokeWidth={1.75} />}>
+                  Rever a revelação
+                </Button>
+              )}
+              {data?.canClose && (
+                <Button size="sm" variant="primary" onClick={closeNow} disabled={busy !== null} pending={busy === "close"}>
+                  Fechar rodada agora
+                </Button>
+              )}
+            </>
+          }
+        />
 
         {data && week && <SeasonTrack season={data.season} week={week} live={data.missionsWeek} />}
 

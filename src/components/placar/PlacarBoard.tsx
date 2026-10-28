@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   addWeeks,
@@ -22,6 +21,8 @@ import {
   type Tone,
 } from "@/lib/placar/score";
 import { Trophy } from "lucide-react";
+import { Button, CONTAINER } from "@/components/ui";
+import { PageHeader } from "./PageHeader";
 import { roundOf, SEASON } from "@/lib/placar/rodada-rules";
 import type { Audience, BoardClient, PlacarEntry, PlacarSnapshot } from "@/lib/placar/types";
 import { ClientDialog, EntryDialog } from "./PlacarDialogs";
@@ -152,67 +153,42 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
   const go = (w: string) => setPickedWeek(w);
 
   return (
-    <div className="min-h-screen bg-[#07080a]">
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-7 px-4 pb-24 pt-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-bg">
+      <div className={`${CONTAINER} flex flex-col gap-7`}>
 
-        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-          <div className="flex min-w-0 flex-col gap-2">
-            <span className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-zinc-500">
-              <i aria-hidden className="inline-block size-2.5 rounded-[2px] bg-[#00e5ff]" />
-              COB · gestão por resultado{finance ? " · visão do financeiro" : ""}
-            </span>
-            <h1 className="text-[clamp(26px,4vw,34px)] font-extrabold leading-none tracking-[-0.03em] text-white">
-              Placar de Clientes
-            </h1>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2" aria-label="Semana do placar">
-            <button
-              type="button"
-              aria-label="Semana anterior"
-              disabled={!week}
-              onClick={() => week && go(addWeeks(week, -1))}
-              className={`${btnGhost} size-9 px-0 text-[16px]`}
-            >
-              ‹
-            </button>
-            <div className="flex min-w-[148px] flex-col items-center px-1">
-              <b className="font-mono text-[15px] font-semibold tabular-nums text-white">{week ? weekLabel(week) : "…"}</b>
-              <span className="text-[11.5px] text-zinc-500">
-                {!week || !closed ? "semana lida" : week === closed ? "última semana fechada" : week > closed ? "semana em andamento" : "semana lida"}
-              </span>
-            </div>
-            <button
-              type="button"
-              aria-label="Próxima semana"
-              disabled={!week || !currentMonday || week >= currentMonday}
-              onClick={() => week && go(addWeeks(week, 1))}
-              className={`${btnGhost} size-9 px-0 text-[16px]`}
-            >
-              ›
-            </button>
-            <button type="button" onClick={() => setPickedWeek(null)} className={`${btnGhost} h-9`}>
-              Última semana fechada
-            </button>
-            {!finance && (
-              <Link
-                href="/placar/semana"
-                className={`${btnGhost} h-9 gap-1.5 border-[#00e5ff]/40 text-[#7ff2ff] hover:border-[#00e5ff] hover:text-white`}
-              >
-                <Trophy aria-hidden className="size-3.5" />
-                Rodada da semana
-                {currentMonday && roundOf(currentMonday) && (
-                  <span className="font-mono text-[11.5px] text-zinc-400">
-                    {roundOf(currentMonday)}/{SEASON.rounds}
-                  </span>
-                )}
-              </Link>
-            )}
-            <button type="button" onClick={() => setClientDlg({ client: null })} disabled={state !== "ok"} className={`${btnPrimary} h-9`}>
-              Novo cliente
-            </button>
-          </div>
-        </header>
+        <PageHeader
+          eyebrow={`COB · gestão por resultado${finance ? " · visão do financeiro" : ""}`}
+          title="Placar de Clientes"
+          week={{
+            ariaLabel: "Semana do placar",
+            label: week ? weekLabel(week) : "…",
+            hint: !week || !closed ? "semana lida" : week === closed ? "última semana fechada" : week > closed ? "semana em andamento" : "semana lida",
+            onPrev: () => week && go(addWeeks(week, -1)),
+            onNext: () => week && go(addWeeks(week, 1)),
+            prevDisabled: !week,
+            nextDisabled: !week || !currentMonday || week >= currentMonday,
+          }}
+          actions={
+            <>
+              <Button size="sm" onClick={() => setPickedWeek(null)}>
+                Última semana fechada
+              </Button>
+              {!finance && (
+                <Button size="sm" variant="soft" href="/placar/semana" icon={<Trophy aria-hidden strokeWidth={1.75} />}>
+                  Rodada da semana
+                  {currentMonday && roundOf(currentMonday) && (
+                    <span className="type-caption tabular-nums text-dim">
+                      {roundOf(currentMonday)}/{SEASON.rounds}
+                    </span>
+                  )}
+                </Button>
+              )}
+              <Button size="sm" variant="primary" onClick={() => setClientDlg({ client: null })} disabled={state !== "ok"}>
+                Novo cliente
+              </Button>
+            </>
+          }
+        />
 
         {data?.store === "file" && (
           <p className="rounded-lg border border-sky-400/20 bg-sky-400/[0.05] px-4 py-2.5 font-mono text-[12px] leading-relaxed text-sky-300/90">
