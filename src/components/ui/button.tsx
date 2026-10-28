@@ -1,58 +1,112 @@
-import { Button as ButtonPrimitive } from "@base-ui/react/button"
-import { cva, type VariantProps } from "class-variance-authority"
+"use client";
 
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { motion, type HTMLMotionProps } from "motion/react";
+import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-        ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
-        destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
-        "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+export type ButtonVariant = "primary" | "ghost" | "soft" | "danger" | "link";
+export type ButtonSize = "sm" | "md" | "lg";
 
-function Button({
+const BASE =
+  "group relative inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold outline-none motion-safe:transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none";
+
+const VARIANT: Record<ButtonVariant, string> = {
+  primary: "bg-accent text-accent-fg hover:bg-[color-mix(in_srgb,var(--color-accent),white_12%)]",
+  ghost: "border border-line text-mute hover:border-line-strong hover:bg-surface-2 hover:text-fg",
+  soft: "bg-surface-2 text-fg shadow-relief hover:bg-surface-3",
+  danger: "border border-bad/35 text-bad hover:bg-bad/12",
+  link: "rounded-sm px-0 font-medium text-accent-text underline-offset-4 hover:underline",
+};
+
+/** Alvo de 44px no celular (§8); no desktop o `sm` tem 32px. */
+const SIZE: Record<ButtonSize, string> = {
+  sm: "h-8 px-3.5 text-xs max-sm:h-11 max-sm:px-4 max-sm:text-sm",
+  md: "h-9 px-4 text-sm max-sm:h-11",
+  lg: "h-11 px-6 text-sm",
+};
+
+const ICON: Record<ButtonSize, string> = { sm: "[&_svg]:size-4", md: "[&_svg]:size-4", lg: "[&_svg]:size-[18px]" };
+
+type Native = Omit<HTMLMotionProps<"button">, "children" | "ref">;
+
+export type ButtonProps = Native & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  /** Rótulo vira spinner, largura fica. */
+  pending?: boolean;
+  /** Elemento (`<Plus />`), não componente, para servir de tela de servidor. */
+  icon?: React.ReactNode;
+  /** No `primary`, o ícone final mora num círculo próprio: a assinatura da Arena. */
+  iconEnd?: React.ReactNode;
+  /** Com `href` vira link (Next Link). */
+  href?: string;
+  children?: React.ReactNode;
+};
+
+const MotionLink = motion.create(Link);
+
+export function Button({
+  variant = "ghost",
+  size = "md",
+  pending = false,
+  icon,
+  iconEnd,
+  href,
   className,
-  variant = "default",
-  size = "default",
+  children,
+  disabled,
+  type,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
+  const iconOnly = !children && Boolean(icon || iconEnd);
+  const classes = cn(
+    BASE,
+    VARIANT[variant],
+    variant !== "link" && SIZE[size],
+    iconOnly && "aspect-square px-0",
+    iconEnd && variant === "primary" && !iconOnly && (size === "lg" ? "pr-2.5" : "pr-1.5"),
+    className,
+  );
+  const body = (
+    <>
+      <span className={cn("contents [&_svg]:shrink-0", ICON[size], pending && "invisible")} aria-hidden={pending || undefined}>
+        {icon}
+        {children}
+        {iconEnd &&
+          (variant === "primary" ? (
+            <span className="flex size-[22px] items-center justify-center rounded-full bg-accent-fg/18 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5 [&_svg]:size-3.5">
+              {iconEnd}
+            </span>
+          ) : (
+            iconEnd
+          ))}
+      </span>
+      {pending && (
+        <span className="absolute inset-0 flex items-center justify-center" aria-hidden>
+          <Loader2 className="size-4 motion-safe:animate-spin" strokeWidth={2} />
+        </span>
+      )}
+    </>
+  );
+  const tap = { whileTap: { scale: 0.98 } };
+  if (href) {
+    return (
+      <MotionLink href={href} className={classes} aria-busy={pending || undefined} {...tap} {...(props as object)}>
+        {body}
+      </MotionLink>
+    );
+  }
   return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+    <motion.button
+      type={type ?? "button"}
+      className={classes}
+      disabled={disabled}
+      aria-busy={pending || undefined}
+      {...tap}
       {...props}
-    />
-  )
+    >
+      {body}
+    </motion.button>
+  );
 }
-
-export { Button, buttonVariants }

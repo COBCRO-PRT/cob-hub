@@ -1,20 +1,21 @@
-"use client"
+import { cn } from "@/lib/utils";
 
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
-
-function Label({ className, ...props }: React.ComponentProps<"label">) {
+/** Eyebrow e cabeçalho de coluna: mono, caixa alta, 11px. Substitui as 25 variações antigas. */
+export function Label({
+  tone = "dim",
+  as: Tag = "span",
+  className,
+  children,
+  ...props
+}: {
+  tone?: "dim" | "accent";
+  as?: "span" | "p" | "th" | "div";
+  className?: string;
+  children: React.ReactNode;
+} & Omit<React.HTMLAttributes<HTMLElement>, "className" | "children">) {
   return (
-    <label
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className
-      )}
-      {...props}
-    />
-  )
+    <Tag className={cn("type-label", tone === "accent" ? "text-accent" : "text-dim", className)} {...props}>
+      {children}
+    </Tag>
+  );
 }
-
-export { Label }
