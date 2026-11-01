@@ -34,7 +34,10 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Um cartão de login para os três acessos (§6.6): logo, título, texto, campos, botão e erro. */
+/**
+ * Um cartão de login para os três acessos (D2.5): sem casca, `Surface light` de 400px centrada,
+ * um único halo de acento bem fraco no topo da tela.
+ */
 export function LoginCard({
   title,
   text,
@@ -47,8 +50,9 @@ export function LoginCard({
   submitLabel = "Entrar",
 }: LoginCardProps) {
   return (
-    <main className="flex min-h-[100dvh] items-center justify-center bg-bg px-4 py-8 sm:px-6">
-      <Surface className="w-full max-w-[400px] p-6 sm:p-8">
+    <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-bg px-4 py-8 sm:px-6">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-glow-accent opacity-60" />
+      <Surface light className="relative w-full max-w-[400px] p-6 sm:p-8">
         <Logo className="h-5" />
 
         <h1 className="type-title mt-6 text-fg">{title}</h1>

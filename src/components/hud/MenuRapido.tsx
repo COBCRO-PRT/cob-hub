@@ -123,7 +123,7 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
         onKeyDown={onKey}
       >
         <label className="flex items-center gap-3 border-b border-line px-4">
-          <Search aria-hidden className="size-[18px] shrink-0 text-accent" strokeWidth={1.75} />
+          <Search aria-hidden className="size-[18px] shrink-0 text-dim" strokeWidth={1.75} />
           <input
             ref={input}
             value={q}
@@ -158,8 +158,8 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
                 onMouseMove={() => setActive(i)}
                 onClick={() => go(r.d)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left outline-none motion-safe:transition-colors",
-                  i === active ? "border-line-strong bg-surface-2" : "border-transparent",
+                  "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left outline-none motion-safe:transition-colors",
+                  i === active ? "bg-surface-2 text-fg" : "text-mute",
                 )}
               >
                 <DestinoIcon d={r.d} active={i === active} />
@@ -170,7 +170,7 @@ export function MenuRapido({ admin, onClose }: { admin: boolean; onClose: () => 
                   </span>
                   <span className="truncate type-caption text-dim">{r.d.what}</span>
                 </span>
-                {i === active && <CornerDownLeft aria-hidden className="size-4 shrink-0 text-accent" strokeWidth={1.75} />}
+                {i === active && <CornerDownLeft aria-hidden className="size-4 shrink-0 text-mute" strokeWidth={1.75} />}
               </button>
             </li>
           ))}

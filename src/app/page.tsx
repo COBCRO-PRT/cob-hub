@@ -5,8 +5,6 @@ import { Continuar } from "@/components/hud/Continuar";
 import { CONTAINER, Label } from "@/components/ui";
 import { USER_COOKIE_NAME, readSession } from "@/lib/gate-pessoa";
 import { SECUNDARIOS, SHELVES } from "@/lib/catalog";
-import { SEASON, roundOf } from "@/lib/placar/rodada-rules";
-import { mondayOf } from "@/lib/placar/score";
 
 const TZ = "America/Sao_Paulo";
 
@@ -15,31 +13,19 @@ function saudacao(now: Date) {
   return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
 }
 
-/** Tela de partida (§6.2): saudação, o cartão da rodada e as prateleiras. A barra do jogo vem do layout. */
+/** Tela de partida (D2.5): herói da rodada, cartão do jogador, KPIs e as prateleiras. A casca vem do layout. */
 export default async function Home() {
   const pessoa = await readSession((await cookies()).get(USER_COOKIE_NAME)?.value);
   const starts = SHELVES.map((_, i) => 1 + SHELVES.slice(0, i).reduce((n, s) => n + s.items.length, 0));
   const urls = SHELVES.flatMap((s) => s.items.map((it) => it.url)).slice(0, 9);
   const now = new Date();
   const data = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: TZ }).format(now);
-  const round = roundOf(mondayOf(now));
 
   return (
     <div className="min-h-screen bg-bg">
       <TeclasDaHome urls={urls} />
       <main className={`${CONTAINER} flex flex-col gap-10`}>
-        <section className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1">
-            <h1 className="type-title text-fg">
-              {pessoa ? `${saudacao(now)}, ${pessoa.name}` : "Olá"}
-            </h1>
-            <Label>
-              {data}
-              {round ? ` · ${SEASON.name} · rodada ${round} de ${SEASON.rounds}` : ""}
-            </Label>
-          </div>
-          <Continuar pessoa={pessoa ? { name: pessoa.name, role: pessoa.role } : null} />
-        </section>
+        <Continuar pessoa={pessoa ? { name: pessoa.name, role: pessoa.role } : null} saudacao={saudacao(now)} data={data} />
 
         {SHELVES.map((shelf, i) => (
           <div key={shelf.id} id={shelf.id} className="scroll-mt-20">

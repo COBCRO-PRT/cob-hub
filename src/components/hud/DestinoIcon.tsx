@@ -17,7 +17,7 @@ export const HUD_ICON: Record<NonNullable<Destino["icon"]>, LucideIcon> = {
 export function DestinoIcon({ d, active = false }: { d: Destino; active?: boolean }) {
   const box = cn(
     "flex size-9 shrink-0 items-center justify-center rounded-md motion-safe:transition-colors",
-    active ? "bg-accent text-accent-fg" : "bg-surface-2 text-mute shadow-relief",
+    active ? "bg-surface-3 text-fg shadow-relief" : "bg-surface-2 text-mute shadow-relief",
   );
   if (d.icon) {
     const Icon = HUD_ICON[d.icon];
@@ -27,5 +27,5 @@ export function DestinoIcon({ d, active = false }: { d: Destino; active?: boolea
       </span>
     );
   }
-  return <span className={cn(box, "type-subtitle font-extrabold")}>{d.mark ?? d.name.charAt(0)}</span>;
+  return <span className={cn(box, "type-subtitle")}>{d.mark ?? d.name.charAt(0)}</span>;
 }

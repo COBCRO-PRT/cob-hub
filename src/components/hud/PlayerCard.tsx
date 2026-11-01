@@ -43,11 +43,11 @@ export function PlayerCard({ pessoa, player, placement = "down", wide = false }:
         aria-haspopup="menu"
         aria-label={`Jogador ${pessoa.name}`}
         className={cn(
-          "flex items-center gap-2 border border-line bg-surface-1 shadow-relief outline-none motion-safe:transition-colors hover:border-line-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+          "flex items-center gap-2 border border-line bg-surface-1 shadow-relief outline-none motion-safe:transition-colors hover:border-line-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent aria-expanded:bg-surface-2 aria-expanded:text-fg",
           wide ? "w-full rounded-md px-2 py-2" : "h-9 rounded-full py-1 pr-2.5 pl-1",
         )}
       >
-        <span className={cn("flex size-7 items-center justify-center rounded-full text-sm font-extrabold", gold ? "bg-gold text-accent-fg" : "bg-accent text-accent-fg")}>
+        <span className={cn("flex size-7 items-center justify-center rounded-full text-sm font-semibold shadow-relief", gold ? "bg-gold text-accent-fg" : "bg-surface-3 text-fg")}>
           {pessoa.name.charAt(0)}
         </span>
         <span className={cn("min-w-[88px] flex-col items-stretch gap-1", wide ? "flex flex-1" : "hidden sm:flex")}>
@@ -58,7 +58,7 @@ export function PlayerCard({ pessoa, player, placement = "down", wide = false }:
             <span className="flex items-center gap-1.5">
               <span className={cn("type-label leading-none", gold ? "text-gold" : "text-dim")}>nv {data.level.n}</span>
               <span className="relative h-1 flex-1 overflow-hidden rounded-full bg-line">
-                <span className={cn("absolute inset-y-0 left-0 rounded-full", gold ? "bg-gold" : "bg-accent")} style={{ width: `${levelPct(data.xp, data.level.from, data.level.next)}%` }} />
+                <span className={cn("absolute inset-y-0 left-0 rounded-full", gold ? "bg-gold" : "bg-fg")} style={{ width: `${levelPct(data.xp, data.level.from, data.level.next)}%` }} />
               </span>
             </span>
           ) : (
@@ -106,7 +106,7 @@ export function PlayerCard({ pessoa, player, placement = "down", wide = false }:
             <div className="flex flex-col border-t border-line pt-1.5">
               <MenuLink href="/placar/semana#missoes" icon={<Target aria-hidden className="size-4" strokeWidth={1.75} />} onClick={() => setOpen(false)}>
                 {admin ? "Missões do time" : "Minhas missões"}
-                {missions ? <span className="ml-auto type-caption tabular-nums text-accent-text">{missions}</span> : null}
+                {missions ? <span className="ml-auto type-caption tabular-nums text-mute">{missions}</span> : null}
               </MenuLink>
               <MenuLink href="/placar/semana#temporada" icon={<Crown aria-hidden className="size-4" strokeWidth={1.75} />} onClick={() => setOpen(false)}>
                 Tabela da temporada

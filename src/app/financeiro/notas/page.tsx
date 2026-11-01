@@ -73,10 +73,10 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
   const reemissao = podeEmitir && linha.situacao !== "pendente";
 
   return (
-    <tr className="motion-safe:transition-colors hover:bg-surface-2 [&>td]:border-b [&>td]:border-line last:[&>td]:border-b-0">
-      <td className="py-3.5 pl-5 pr-4 align-top">
+    <tr className="h-12 even:bg-surface-2 motion-safe:transition-colors hover:bg-surface-3 [&>td]:py-2 [&>td]:align-middle">
+      <td className="pl-5 pr-4">
         <div className="type-body font-medium text-fg">{nome}</div>
-        <div className="mt-1 font-mono text-xs text-dim">{linha.referencia}</div>
+        <div className="mt-0.5 font-mono type-caption text-dim">{linha.referencia}</div>
         {travada && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {linha.bloqueios.map((bloqueio) => (
@@ -104,7 +104,7 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
         )}
       </td>
 
-      <td className="py-3.5 pr-4 align-top">
+      <td className="pr-4">
         {podeEmitir ? (
           <input
             type="text"
@@ -119,7 +119,7 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
         )}
       </td>
 
-      <td className="py-3.5 pr-4 align-top">
+      <td className="pr-4">
         {podeEmitir ? (
           <div
             className={cn(
@@ -154,14 +154,14 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
         )}
       </td>
 
-      <td className="py-3.5 pr-4 align-top">
+      <td className="pr-4">
         <Pill tone={selo.tone}>{selo.texto}</Pill>
         {linha.nota?.number && (
-          <div className="mt-1.5 font-mono text-xs text-dim">nº {linha.nota.number}</div>
+          <div className="mt-1 font-mono type-caption text-dim">nº {linha.nota.number}</div>
         )}
       </td>
 
-      <td className="py-3.5 pr-5 align-top text-right">
+      <td className="pr-5 text-right">
         {podeEmitir && travada && <span className="type-caption text-bad">cadastro incompleto</span>}
 
         {podeEmitir && !travada && (
@@ -179,7 +179,7 @@ function Linha({ linha }: { linha: LinhaDoLote }) {
                 href={linha.nota.pdfUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-sm text-xs font-semibold text-accent-text underline-offset-4 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&_svg]:size-3.5"
+                className="inline-flex items-center gap-1 rounded-sm text-xs font-semibold text-mute underline underline-offset-4 outline-none motion-safe:transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent [&_svg]:size-3.5"
               >
                 <FileText aria-hidden strokeWidth={1.75} />
                 PDF
@@ -300,30 +300,17 @@ export default async function Notas({
 
         {lote.length > 0 && (
           <div className="flex flex-col gap-3">
-            <Surface className="flex flex-wrap gap-x-10 gap-y-5 px-5 py-4">
-              <Kpi label="A emitir" value={aEmitir.length} sub={`de ${lote.length} contratos`} />
-              <Kpi label="Somam" value={total} money />
+            <div className="grid grid-cols-12 gap-4">
+              <Kpi label="A emitir" value={aEmitir.length} sub={`de ${lote.length} contratos`} className="col-span-12 md:col-span-4" />
+              <Kpi label="Valor do lote" value={total} money sub={comAviso.length ? `${comAviso.length} com aviso` : "sem avisos"} className="col-span-12 md:col-span-4" />
               <Kpi
-                label="Já emitidas"
+                label="Emitidas"
                 value={emitidas.length}
                 sub={emitidas.length ? "neste mês" : "nenhuma ainda"}
+                tone={emitidas.length ? "good" : undefined}
+                className="col-span-12 md:col-span-4"
               />
-              <Kpi
-                label="Travadas"
-                value={travadas.length}
-                sub={travadas.length ? "cadastro incompleto" : "nenhuma"}
-                tone={travadas.length ? "warn" : undefined}
-              />
-              {impostoDoLote !== null && enquadramento && (
-                <Kpi
-                  label="Imposto estimado"
-                  value={impostoDoLote}
-                  money
-                  sub={`${(enquadramento.aliquotaEfetiva * 100).toFixed(2)}% efetivo`}
-                  tone="warn"
-                />
-              )}
-            </Surface>
+            </div>
 
             {enquadramento && (
               <p className="flex flex-wrap items-center gap-x-5 gap-y-1 px-1 type-caption tabular-nums text-dim">
@@ -337,6 +324,16 @@ export default async function Notas({
                 <span>
                   efetiva <span className="text-mute">{(enquadramento.aliquotaEfetiva * 100).toFixed(2)}%</span>
                 </span>
+                {impostoDoLote !== null && (
+                  <span>
+                    imposto estimado <span className="text-warn">{real(impostoDoLote)}</span>
+                  </span>
+                )}
+                {travadas.length > 0 && (
+                  <span>
+                    <span className="text-warn">{travadas.length}</span> travadas por cadastro
+                  </span>
+                )}
                 {enquadramento.ateProximaFaixa !== null && (
                   <span>
                     faltam <span className="text-mute">{real(enquadramento.ateProximaFaixa)}</span> pra próxima
@@ -358,11 +355,11 @@ export default async function Notas({
 
         {lote.length > 0 && (
           <Surface className="overflow-x-auto">
-            <table className="w-full min-w-[820px] border-separate border-spacing-0">
+            <table className="w-full min-w-[820px] border-separate border-spacing-0 tabular-nums">
               <thead>
                 <tr className="text-left">
                   {colunas.map(([titulo, classe]) => (
-                    <Label key={titulo || "acao"} as="th" className={cn("border-b border-line py-3", classe)}>
+                    <Label key={titulo || "acao"} as="th" className={cn("h-12 border-b border-line align-middle", classe)}>
                       {titulo}
                     </Label>
                   ))}

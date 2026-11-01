@@ -1,29 +1,28 @@
 import { ArrowUpRight } from "lucide-react";
-import { Kbd, Pill } from "@/components/ui";
+import { Kbd, Pill, Surface } from "@/components/ui";
 import { BRAND_MARK, type Shortcut } from "@/lib/catalog";
-import { cn } from "@/lib/utils";
 
 /**
- * Card de atalho (§6.2): marca em caixa, nome, o que se faz ali, e o endereço no rodapé
- * para a pessoa saber para onde vai antes de clicar.
+ * Card de atalho (D2.5): letra da marca em caixa de 36px, nome, o que se faz ali e o endereço no
+ * rodapé. A tecla continua funcionando; só aparece no hover e no `title`.
  */
 export function Tile({ item, hotkey }: { item: Shortcut; hotkey?: number }) {
-  // Tela do próprio hub abre na mesma aba, com a barra do jogo; ferramenta de fora, em aba nova.
+  // Tela do próprio hub abre na mesma aba, com a casca; ferramenta de fora, em aba nova.
   const external = !item.url.startsWith("/");
   return (
-    <a
+    <Surface
+      as="a"
+      light
+      interactive
       href={item.url}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
+      title={hotkey ? `${item.name} (tecla ${hotkey})` : item.name}
       aria-keyshortcuts={hotkey ? String(hotkey) : undefined}
-      className={cn(
-        "group flex w-[268px] shrink-0 snap-start flex-col justify-between gap-5 rounded-card border border-line bg-surface-1 p-5 shadow-relief outline-none",
-        "motion-safe:transition-[background-color,border-color,transform] hover:border-line-strong hover:bg-surface-3 motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.985]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-[292px] lg:min-h-[176px] lg:w-full",
-      )}
+      className="group flex min-h-[168px] flex-col justify-between gap-5 p-5 motion-safe:hover:-translate-y-0.5"
     >
       <div className="flex items-start gap-3">
-        <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-2 type-subtitle font-extrabold text-mute shadow-relief motion-safe:transition-colors group-hover:bg-accent group-hover:text-accent-fg">
+        <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-2 type-subtitle text-mute shadow-relief">
           {BRAND_MARK[item.brand]}
         </span>
         <div className="flex min-w-0 flex-col gap-1">
@@ -36,13 +35,13 @@ export function Tile({ item, hotkey }: { item: Shortcut; hotkey?: number }) {
         {item.note && <Pill tone="warn" className="h-auto min-h-6 self-start whitespace-normal py-0.5 text-left">{item.note}</Pill>}
         <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
           <span className="truncate font-mono type-caption text-dim">{item.host}</span>
-          <span className="flex shrink-0 items-center gap-2 type-caption text-dim motion-safe:transition-colors group-hover:text-accent-text">
-            {hotkey && <Kbd className="hidden lg:inline-flex">{hotkey}</Kbd>}
+          <span className="flex shrink-0 items-center gap-2 type-caption text-dim motion-safe:transition-colors group-hover:text-fg">
+            {hotkey && <Kbd className="hidden lg:group-hover:inline-flex lg:group-focus-visible:inline-flex">{hotkey}</Kbd>}
             abrir
             <ArrowUpRight aria-hidden className="size-3.5" strokeWidth={1.75} />
           </span>
         </div>
       </div>
-    </a>
+    </Surface>
   );
 }
