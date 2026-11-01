@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, CircleCheck, Flame } from "lucide-react";
-import { Bar, Button, Empty, Label, Metric, Modal, Pill, Score as Ring, SectionTitle, Surface, Trail, spring } from "@/components/ui";
+import { Bar, Button, Empty, Label, Modal, Pill, Score as Ring, SectionTitle, Surface, Trail, spring } from "@/components/ui";
 import { STREAK } from "@/lib/placar/rodada-rules";
 import type { LaunchLine, Mission } from "@/lib/placar/jogo";
 import type { RodadaClient, RodadaTaskInfo } from "@/lib/placar/rodada";
@@ -18,7 +18,7 @@ export const SEM_DONO = "sem-dono";
 export const matches = (picked: string, owner: string) =>
   picked === "todos" || (picked === SEM_DONO ? !owner : owner === picked);
 
-/** Chips de pessoa com a mesma linguagem de "selecionado" do hub: `surface-2` + `line-strong`. */
+/** Chips de pessoa com a linguagem de "selecionado" da D2.2: `surface-2` + `fg`, sem ciano. */
 export function PersonFilter({ owners, picked, onPick }: { owners: string[]; picked: string; onPick: (o: string) => void }) {
   const opts = [
     { id: "todos", label: "Todos" },
@@ -38,7 +38,7 @@ export function PersonFilter({ owners, picked, onPick }: { owners: string[]; pic
             type="button"
             aria-pressed={on}
             onClick={() => onPick(o.id)}
-            className={cn("inline-flex h-9 items-center rounded-full px-4 type-body font-semibold max-sm:h-11", on ? "border-line-strong text-fg" : "text-mute")}
+            className={cn("inline-flex h-8 items-center rounded-full px-3.5 type-caption font-semibold max-sm:h-11 max-sm:px-4", on ? "border-line-strong text-fg" : "text-mute")}
           >
             {o.label}
           </Surface>
@@ -52,60 +52,59 @@ const FIRST = 6;
 /** Abaixo de 4 a nota é vermelha; a barra da virada mede o caminho até essa marca. */
 const RED_LIMIT = 4;
 
-/** Missões da semana em andamento, com o número que falta e quanto valem. */
+/**
+ * Missões da semana (D2.5): prazo e lançados por pessoa no título, o filtro de pessoa logo abaixo
+ * e a grade de 2 colunas com a missão de virada em destaque. 6 visíveis, "Ver todas" abre o resto.
+ */
 export function Missions({
   missions,
   launch,
   week,
   picked,
+  filter,
+  className,
 }: {
   missions: Mission[];
   launch: LaunchLine[];
   week: string;
   picked: string;
+  /** Os chips de pessoa, que filtram esta seção e as vizinhas. */
+  filter?: React.ReactNode;
+  className?: string;
 }) {
   const now = useNow();
   const [all, setAll] = useState(false);
   const list = missions.filter((m) => matches(picked, m.owner));
   const open = list.filter((m) => !m.done);
-  const done = list.filter((m) => m.done);
   const prize = open.reduce((n, m) => n + m.points, 0);
   const shown = all ? list : list.slice(0, FIRST);
   const bars = launch.filter((l) => matches(picked, l.owner) && picked !== SEM_DONO);
+  const deadline = now ? `fecha em ${countdown(closesAt(week) - now)}, segunda às 10h` : `${weekLabel(week)}, fecha segunda às 10h`;
 
   return (
-    <section aria-label="Missões da semana" className="flex flex-col gap-4">
-      <SectionTitle
-        title="Missões da semana"
-        hint={`${weekLabel(week)}${now ? ` · fecha em ${countdown(closesAt(week) - now)}, segunda às 10h` : ""}`}
-        right={
-          <Button size="sm" href="/placar">
-            Lançar no placar
-          </Button>
-        }
-      />
+    <section id="missoes" aria-label="Missões da semana" className={cn("flex scroll-mt-20 flex-col gap-4", className)}>
+      <SectionTitle title="Missões da semana" hint={`${deadline} · ${plural(open.length, "aberta", "abertas")}, +${prize} pts em jogo`} />
 
-      <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
-        <Metric value={prize} format={(n) => `+${Math.round(n)}`} unit="pts em jogo" label="Em jogo" sub={`${plural(open.length, "missão aberta", "missões abertas")} · ${plural(done.length, "cumprida", "cumpridas")}`} />
-        {bars.length > 0 && (
-          <div className="flex min-w-0 flex-1 basis-[240px] flex-col gap-2">
-            <Label>Números da semana lançados</Label>
-            {bars.map((l) => (
-              <div key={l.owner} className="flex items-center gap-3 type-caption">
-                <span className="w-16 shrink-0 truncate text-mute">{l.owner}</span>
-                <Bar value={l.done} max={l.total} tone={l.done === l.total ? "good" : "accent"} size="sm" label={`${l.owner}: ${l.done} de ${l.total} lançados`} />
-                <span className="w-12 shrink-0 text-right tabular-nums text-mute">
-                  {l.done}/{l.total}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Lançados por pessoa e o filtro ficam em linhas que quebram: no celular o slot do título não cabe. */}
+      {bars.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="Números da semana lançados">
+          <Label className="mr-1">Lançados</Label>
+          {bars.map((l) => (
+            <Pill key={l.owner} tone={l.done === l.total ? "good" : "neutral"} aria-label={`${l.owner}: ${l.done} de ${l.total} lançados`}>
+              {l.owner}{" "}
+              <span className="tabular-nums">
+                {l.done}/{l.total}
+              </span>
+            </Pill>
+          ))}
+        </div>
+      )}
+
+      {filter}
 
       {list.length ? (
         <>
-          <ul className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+          <ul className="grid gap-3 sm:grid-cols-2">
             <AnimatePresence initial={false}>
               {shown.map((m) => (
                 <MissionCard key={`${m.client}_${m.kind}`} m={m} />
@@ -113,19 +112,27 @@ export function Missions({
             </AnimatePresence>
           </ul>
           {list.length > FIRST && (
-            <Button onClick={() => setAll(!all)} className="self-center">
+            <Button size="sm" onClick={() => setAll(!all)} className="self-center">
               {all ? "Mostrar menos" : `Ver todas as ${list.length} missões`}
             </Button>
           )}
         </>
       ) : (
-        <Empty title="Nenhuma missão para esta pessoa nesta semana" text="Troque a pessoa acima ou lance números no placar." action={<Button href="/placar">Lançar no placar</Button>} />
+        <Empty
+          title="Nenhuma missão para esta pessoa nesta semana"
+          text="Troque a pessoa acima ou lance números no placar."
+          action={
+            <Button size="sm" variant="soft" href="/placar">
+              Lançar no placar
+            </Button>
+          }
+        />
       )}
     </section>
   );
 }
 
-/** Cartão de missão. A de virada (+5) é maior: ocupa duas colunas, com o anel do cliente e a conta do que falta. */
+/** Cartão de missão em `Surface light`. A de virada (+5) ocupa as duas colunas, com o anel maior e a barra do que falta. */
 export function MissionCard({ m }: { m: Mission }) {
   const k = KIND[m.kind];
   const Icon = k.icon;
@@ -137,9 +144,9 @@ export function MissionCard({ m }: { m: Mission }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className={cn("min-w-0", big && "md:col-span-2")}
+      className={cn("min-w-0", big && "sm:col-span-2")}
     >
-      <Surface className={cn("flex h-full flex-col gap-3 px-4 py-3", m.done && "border-good/35")}>
+      <Surface light className="flex h-full flex-col gap-3 p-4">
         <span className="flex items-center justify-between gap-2">
           {m.done ? (
             <Pill tone="good" icon={<CircleCheck aria-hidden strokeWidth={1.75} />}>
@@ -150,10 +157,11 @@ export function MissionCard({ m }: { m: Mission }) {
               {k.label}
             </Pill>
           )}
-          <span className="type-metric-sm tabular-nums text-fg">+{m.points}</span>
+          <span className={cn("type-metric-sm", m.done ? "text-dim" : "text-fg")}>+{m.points}</span>
         </span>
         <span className="flex items-center gap-3">
-          <Ring value={m.score} tone={m.tone} size={big ? 40 : 32} />
+          {/* Anel de 32 sem número (D2.4): a nota de "10,0" não cabe nele; o tom já conta a história. */}
+          <Ring value={m.score} tone={m.tone} size={big ? 40 : 32} bare={!big} />
           <span className="flex min-w-0 flex-col">
             <span className="truncate type-subtitle text-fg">{m.name}</span>
             <span className="type-caption text-dim">{m.owner || "sem dono"}</span>
@@ -170,17 +178,19 @@ export function MissionCard({ m }: { m: Mission }) {
 
 const TONES: RodadaTone[] = ["bad", "none", "warn", "good"];
 
-/** Mapa da carteira: um anel por cliente na cor da nota. Clicar abre a ficha. */
+/** Mapa da carteira (D2.5): um tile com a contagem por tom no topo e um anel de 32 por cliente, sem número (lista densa, D2.4). Clicar abre a ficha. */
 export function ClientMap({
   rows,
   picked,
   missions,
   tasks,
+  className,
 }: {
   rows: RodadaClient[];
   picked: string;
   missions: Mission[];
   tasks: RodadaTaskInfo[];
+  className?: string;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const list = useMemo(
@@ -194,47 +204,44 @@ export function ClientMap({
   const sel = rows.find((r) => r.client === open) ?? null;
 
   return (
-    <section aria-label="Mapa da carteira" className="flex flex-col gap-4">
-      <SectionTitle
-        title="Mapa da carteira"
-        hint="Toque num cliente para abrir a ficha."
-        right={
-          <>
-            {TONES.map((t) => (
-              <Pill key={t} tone={t}>
-                {TONE_LABEL[t]} <span className="tabular-nums">{count(t)}</span>
-              </Pill>
-            ))}
-          </>
-        }
-      />
-      {list.length ? (
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-3">
-          <AnimatePresence initial={false}>
-            {list.map((r) => (
-              <motion.li key={r.client} layout="position" transition={spring} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setOpen(r.client)}
-                  className="flex min-h-11 w-full flex-col items-center gap-1.5 rounded-md px-1 py-2 text-center outline-none motion-safe:transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                >
-                  <Ring value={r.score} tone={r.tone} size={40} label={`${r.name}: ${r.score === null ? "sem nota" : `nota ${fmtScore(r.score)}`}, ${TONE_LABEL[r.tone].toLowerCase()}`} />
-                  <span className="line-clamp-2 w-full type-caption text-fg [overflow-wrap:anywhere]">{r.name}</span>
-                  {r.greenStreak >= 2 && (
-                    <span className="inline-flex items-center gap-0.5 type-caption tabular-nums text-accent-text">
-                      <Flame aria-hidden className="size-3" strokeWidth={1.75} />
-                      {r.greenStreak} no verde
-                    </span>
-                  )}
-                  {r.redStreak >= 2 && <span className="type-caption tabular-nums text-bad">{r.redStreak}× vermelho</span>}
-                </button>
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
-      ) : (
-        <Empty title="Nenhum cliente para esta pessoa nesta rodada" text="Troque a pessoa no filtro acima." />
-      )}
+    <section id="mapa" aria-label="Mapa da carteira" className={cn("scroll-mt-20", className)}>
+      <Surface className="flex h-full flex-col gap-4 p-5">
+        <SectionTitle title="Mapa da carteira" hint="Toque num cliente para abrir a ficha." />
+        <div className="flex flex-wrap gap-1.5" aria-label="Clientes por faixa">
+          {TONES.map((t) => (
+            <Pill key={t} tone={t}>
+              {TONE_LABEL[t]} <span className="tabular-nums">{count(t)}</span>
+            </Pill>
+          ))}
+        </div>
+        {list.length ? (
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-2">
+            <AnimatePresence initial={false}>
+              {list.map((r) => (
+                <motion.li key={r.client} layout="position" transition={spring} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(r.client)}
+                    className="flex min-h-11 w-full flex-col items-center gap-1.5 rounded-md px-1 py-2 text-center outline-none motion-safe:transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    <Ring value={r.score} tone={r.tone} size={32} bare label={`${r.name}: ${r.score === null ? "sem nota" : `nota ${fmtScore(r.score)}`}, ${TONE_LABEL[r.tone].toLowerCase()}`} />
+                    <span className="line-clamp-2 w-full type-caption text-fg [overflow-wrap:anywhere]">{r.name}</span>
+                    {r.greenStreak >= 2 && (
+                      <span className="inline-flex items-center gap-0.5 type-caption tabular-nums text-good">
+                        <Flame aria-hidden className="size-3" strokeWidth={1.75} />
+                        {r.greenStreak} no verde
+                      </span>
+                    )}
+                    {r.redStreak >= 2 && <span className="type-caption tabular-nums text-bad">{r.redStreak}× vermelho</span>}
+                  </button>
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+        ) : (
+          <Empty title="Nenhum cliente para esta pessoa nesta rodada" text="Troque a pessoa no filtro das missões." />
+        )}
+      </Surface>
       <ClientSheet
         row={sel}
         mission={sel ? (missions.find((m) => m.client === sel.client) ?? null) : null}
@@ -267,11 +274,11 @@ export function ClientSheet({
       description={row ? `${row.owner || "sem dono"}${row.meta ? ` · meta ${row.meta}` : " · sem meta"}` : undefined}
       footer={
         <>
-          <Button size="sm" href="/placar">
+          <Button size="sm" variant="soft" href="/placar">
             Lançar no placar
           </Button>
           {task && (
-            <Button variant="link" href={task.url} {...EXTERNAL_LINK} iconEnd={<ArrowUpRight aria-hidden strokeWidth={1.75} />}>
+            <Button size="sm" href={task.url} {...EXTERNAL_LINK} iconEnd={<ArrowUpRight aria-hidden strokeWidth={1.75} />}>
               Tarefa no ClickUp
             </Button>
           )}
@@ -301,7 +308,7 @@ export function ClientSheet({
               <span className="type-caption text-mute">Faltam {STREAK - row.greenStreak} rodadas no verde para o selo de indicação.</span>
             )}
             {row.badges.length > 0 && (
-              <span className="type-caption text-accent-text">
+              <span className="type-caption text-good">
                 Nesta rodada: {row.badges.map((b) => (b === "virada" ? "virada" : "selo de sequência")).join(" e ")}
               </span>
             )}

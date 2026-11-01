@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence } from "motion/react";
-import { ArrowUpRight, Award, Play, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Button, CONTAINER, Empty, Notice, Pill, Score as Ring, SectionTitle, Skeleton, Surface } from "@/components/ui";
 import { PageHeader } from "./PageHeader";
@@ -11,10 +11,10 @@ import type { Mission } from "@/lib/placar/jogo";
 import type { RodadaClient, RodadaTaskInfo, SemanaSnapshot } from "@/lib/placar/rodada";
 import { addWeeks, mondayOf, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
-import { EXTERNAL_LINK, TONE_LABEL, closesAt, useNow } from "./semana/comum";
+import { EXTERNAL_LINK, closesAt, plural, useNow } from "./semana/comum";
 import { ClientMap, Missions, PersonFilter, matches } from "./semana/Missoes";
 import { Confetti, Reveal } from "./semana/Revelacao";
-import { Conquistas, SeasonTable, SeasonTrack, TeamGoal } from "./semana/Temporada";
+import { Conquistas, PodiumCard, SeasonTable, SeasonTrack, TeamHero } from "./semana/Temporada";
 
 const REFRESH_MS = 60_000;
 
@@ -46,6 +46,11 @@ function markSeen(week: string) {
 
 const missionKey = (m: Mission) => `${m.client}_${m.kind}`;
 
+/**
+ * Rodada da semana na grade bento (D2.5): herói com a meta do time e pódio na linha 1,
+ * missões e vermelhos na linha 2, mapa da carteira e tabela da temporada na linha 3,
+ * conquistas e regras embaixo. No celular tudo vira uma coluna nessa mesma ordem.
+ */
 export function SemanaBoard({ who, admin = false }: { who?: string; admin?: boolean }) {
   const mounted = useMounted();
   const [pickedWeek, setPickedWeek] = useState<string | null>(null);
@@ -184,8 +189,6 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
   const reds = rows
     .filter((r) => r.tone === "bad" && matches(person, r.owner))
     .sort((a, b) => b.redStreak - a.redStreak || a.name.localeCompare(b.name, "pt-BR"));
-  const viradas = rows.filter((r) => r.badges.includes("virada"));
-  const prontos = rows.filter((r) => r.greenStreak >= STREAK);
   const pick = (o: string) => {
     setPicked(o);
     document.getElementById("missoes")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -193,8 +196,8 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className={`${CONTAINER} flex flex-col gap-10`}>
-        <div className="flex flex-col gap-7">
+      <div className={`${CONTAINER} flex flex-col gap-6`}>
+        <div className="flex flex-col gap-5">
           <PageHeader
             eyebrow="COB · gestão por resultado"
             title="Rodada da semana"
@@ -208,11 +211,18 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
               nextDisabled: !week || !currentMonday || week >= currentMonday,
             }}
             actions={
-              data?.canClose ? (
-                <Button size="sm" variant="primary" onClick={closeNow} disabled={busy !== null} pending={busy === "close"}>
-                  Fechar rodada agora
-                </Button>
-              ) : undefined
+              <>
+                {data?.closed && rows.length > 0 && (
+                  <Button size="sm" onClick={() => openReveal(data.week)} icon={<Play aria-hidden strokeWidth={1.75} />}>
+                    Rever a revelação
+                  </Button>
+                )}
+                {data?.canClose && (
+                  <Button size="sm" variant="primary" onClick={closeNow} disabled={busy !== null} pending={busy === "close"}>
+                    Fechar rodada agora
+                  </Button>
+                )}
+              </>
             }
           />
 
@@ -238,103 +248,46 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
         {!data ? (
           state === "loading" && <SemanaSkeleton />
         ) : !rows.length ? (
-          <Empty title="Nenhum cliente nesta rodada" text="A rodada lê o placar da semana. Lance os números para ela aparecer aqui." action={<Button href="/placar">Lançar no placar</Button>} />
+          <Empty
+            title="Nenhum cliente nesta rodada"
+            text="A rodada lê o placar da semana. Lance os números para ela aparecer aqui."
+            action={
+              <Button variant="soft" href="/placar">
+                Lançar no placar
+              </Button>
+            }
+          />
         ) : (
           <>
-            <section aria-label="Meta do time e pódio" className="flex flex-col gap-4">
-              <SectionTitle
-                title="Meta do time"
-                hint="A carteira inteira no verde até janeiro; o pódio é a rodada em tela."
-                right={<Pill tone={data.closed ? "accent" : "neutral"}>{data.closed ? "rodada fechada" : "prévia, ainda muda"}</Pill>}
+            <div className="grid grid-cols-12 gap-4">
+              <TeamHero green={data.team.green} total={data.team.total} rows={rows} week={data.week} closed={data.closed} className="col-span-12 lg:col-span-7" />
+              <PodiumCard owners={data.owners} levels={levels} onPick={pick} closed={data.closed} className="col-span-12 lg:col-span-5" />
+
+              <Missions
+                missions={data.missions}
+                launch={data.launch}
+                week={data.missionsWeek}
+                picked={person}
+                filter={<PersonFilter owners={owners} picked={person} onPick={setPicked} />}
+                className="col-span-12 lg:col-span-8"
               />
-              <TeamGoal green={data.team.green} total={data.team.total} owners={data.owners} levels={levels} onPick={pick} />
-            </section>
+              <RedList
+                reds={reds}
+                data={data}
+                now={now}
+                busy={busy}
+                onCreate={createTask}
+                className="col-span-12 lg:col-span-4"
+              />
 
-            <section id="temporada" aria-label="Tabela da temporada" className="flex scroll-mt-20 flex-col gap-4">
-              <SectionTitle title="Tabela da temporada" hint="Só rodada fechada soma. Toque numa pessoa para ver as missões dela." />
-              <SeasonTable table={data.table} picked={person} onPick={pick} />
-            </section>
-
-            {(viradas.length > 0 || prontos.length > 0) && (
-              <div className="grid gap-10 lg:grid-cols-2">
-                <section aria-label="Viradas" className="flex flex-col gap-4">
-                  <SectionTitle title="Viradas" hint={`Saíram do vermelho nesta rodada (+${POINTS.virada}).`} />
-                  {viradas.length ? (
-                    <ul className="flex flex-col gap-2">
-                      {viradas.map((r) => (
-                        <Highlight key={r.client} row={r} icon="virada" note={`agora ${TONE_LABEL[r.tone].toLowerCase()}`} />
-                      ))}
-                    </ul>
-                  ) : (
-                    <Empty title="Nenhuma virada nesta rodada" text="Tire um cliente do vermelho para ela aparecer aqui." />
-                  )}
-                </section>
-                <section aria-label="Prontos para indicação" className="flex flex-col gap-4">
-                  <SectionTitle title="Prontos para indicação" hint={`${STREAK} ou mais rodadas seguidas no verde.`} />
-                  {prontos.length ? (
-                    <ul className="flex flex-col gap-2">
-                      {prontos.map((r) => (
-                        <Highlight key={r.client} row={r} icon="selo" note={`${r.greenStreak} rodadas no verde: pedir indicação e propor aumento`} />
-                      ))}
-                    </ul>
-                  ) : (
-                    <Empty title={`Ninguém com ${STREAK} rodadas seguidas no verde ainda`} text="Segure o verde por quatro rodadas para liberar o selo." />
-                  )}
-                </section>
-              </div>
-            )}
-
-            <section id="missoes" aria-label="Ver por pessoa" className="flex scroll-mt-20 flex-col gap-4">
-              <SectionTitle title="Ver por pessoa" hint="Filtra as missões, os vermelhos e o mapa." />
-              <PersonFilter owners={owners} picked={person} onPick={setPicked} />
-            </section>
-
-            <Missions missions={data.missions} launch={data.launch} week={data.missionsWeek} picked={person} />
-
-            <section aria-label="Clientes no vermelho" className="flex flex-col gap-4">
-              <SectionTitle title="No vermelho" hint={`Plano de recuperação no ClickUp, ${reds.length === 1 ? "1 cliente" : `${reds.length} clientes`}.`} />
-              {!data.clickup && (
-                <Notice tone="info">O ClickUp ainda não está ligado no servidor, então as tarefas não são criadas.</Notice>
-              )}
-              {reds.length ? (
-                <ul className="flex flex-col gap-2">
-                  {reds.map((r) => (
-                    <RedRow
-                      key={r.client}
-                      row={r}
-                      task={taskFor(data.tasks, r.client)}
-                      mission={data.missions.find((m) => m.client === r.client && !m.done) ?? null}
-                      canCreate={data.clickup}
-                      now={now}
-                      busy={busy === r.client}
-                      disabled={busy !== null}
-                      onCreate={() => createTask(r)}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <Empty title="Nenhum cliente no vermelho nesta rodada" text="Quando um cliente cair abaixo de 4, ele aparece aqui com a tarefa." />
-              )}
-            </section>
-
-            <div id="mapa" className="scroll-mt-20">
-              <ClientMap rows={rows} picked={person} missions={data.missions} tasks={data.tasks} />
+              <ClientMap rows={rows} picked={person} missions={data.missions} tasks={data.tasks} className="col-span-12 lg:col-span-8" />
+              <SeasonTable table={data.table} picked={person} onPick={pick} className="col-span-12 lg:col-span-4" />
             </div>
 
-            <section aria-label="Conquistas da temporada" className="flex flex-col gap-4">
-              <SectionTitle title="Conquistas da temporada" hint="Não dão ponto, marcam o caminho." />
+            <div className="grid gap-4 md:grid-cols-2">
               <Conquistas table={data.table} />
-            </section>
-
-            <Rules />
-
-            {data.closed && rows.length > 0 && (
-              <div className="flex justify-center">
-                <Button variant="link" onClick={() => openReveal(data.week)} icon={<Play aria-hidden strokeWidth={1.75} />}>
-                  Rever a revelação
-                </Button>
-              </div>
-            )}
+              <Rules />
+            </div>
           </>
         )}
       </div>
@@ -345,34 +298,43 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
   );
 }
 
-/** Esqueleto com a forma da tela (§7): meta com pódio e quatro linhas da tabela. */
+/** Esqueleto com a forma da grade bento (§7): herói com o medidor, pódio, cards de missão e a lista dos vermelhos. */
 function SemanaSkeleton() {
   return (
-    <div className="flex flex-col gap-10" aria-busy aria-label="Carregando a rodada">
-      <div className="flex flex-col gap-4">
-        <Skeleton className="w-40" />
-        <Surface className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
-          <div className="flex items-center gap-5">
-            <div className="size-14 shrink-0 rounded-full bg-surface-2 motion-safe:animate-pulse" aria-hidden />
-            <Skeleton lines={2} className="flex-1" />
-          </div>
-          <div className="flex items-end justify-center gap-2.5">
-            {[80, 112, 56].map((h, i) => (
-              <div key={i} className="w-[31%] max-w-[170px] rounded-t-md bg-surface-2 motion-safe:animate-pulse" style={{ height: h }} aria-hidden />
-            ))}
-          </div>
-        </Surface>
-      </div>
-      <div className="flex flex-col gap-4">
+    <div className="grid grid-cols-12 gap-4" aria-busy aria-label="Carregando a rodada">
+      <Surface className="col-span-12 flex flex-col items-center gap-6 p-6 sm:flex-row lg:col-span-7">
+        <div className="h-[118px] w-[220px] shrink-0 rounded-t-full bg-surface-2 motion-safe:animate-pulse" aria-hidden />
+        <Skeleton lines={3} className="w-full flex-1" />
+      </Surface>
+      <Surface className="col-span-12 flex items-end justify-center gap-2.5 p-6 lg:col-span-5">
+        {[96, 128, 72].map((h, i) => (
+          <div key={i} className="w-[31%] max-w-[180px] rounded-t-md bg-surface-2 motion-safe:animate-pulse" style={{ height: h }} aria-hidden />
+        ))}
+      </Surface>
+      <div className="col-span-12 flex flex-col gap-4 lg:col-span-8">
         <Skeleton className="w-48" />
-        <div className="flex flex-col gap-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {Array.from({ length: 4 }, (_, i) => (
-            <Surface key={i} className="flex items-center gap-3 px-4 py-3">
-              <Skeleton className="w-6" />
-              <Skeleton lines={2} className="flex-1" />
+            <Surface key={i} className="flex flex-col gap-3 p-4">
+              <Skeleton className="w-24" />
+              <div className="flex items-center gap-3">
+                <Skeleton shape="ring" />
+                <Skeleton lines={2} className="flex-1" />
+              </div>
             </Surface>
           ))}
         </div>
+      </div>
+      <div className="col-span-12 flex flex-col gap-4 lg:col-span-4">
+        <Skeleton className="w-32" />
+        <Surface className="flex flex-col gap-4 p-4">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton shape="ring" />
+              <Skeleton lines={2} className="flex-1" />
+            </div>
+          ))}
+        </Surface>
       </div>
     </div>
   );
@@ -384,19 +346,48 @@ function taskFor(tasks: RodadaTaskInfo[], client: string): RodadaTaskInfo | unde
   return mine.find((t) => !t.closed) ?? mine[mine.length - 1];
 }
 
-function Highlight({ row, note, icon }: { row: RodadaClient; note: string; icon: "virada" | "selo" }) {
-  const Icon = icon === "virada" ? TrendingUp : Award;
+/** Tile dos vermelhos (D2.5): lista em `Surface light` com anel, sequência, missão, prazo e a tarefa do ClickUp. */
+function RedList({
+  reds,
+  data,
+  now,
+  busy,
+  onCreate,
+  className,
+}: {
+  reds: RodadaClient[];
+  data: Snapshot;
+  now: number | null;
+  busy: string | null;
+  onCreate: (r: RodadaClient) => void;
+  className?: string;
+}) {
   return (
-    <Surface as="li" className="flex min-h-11 items-center gap-3 px-4 py-3">
-      <Ring value={row.score} tone={row.tone} size={40} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate type-subtitle text-fg">{row.name}</span>
-        <span className="type-caption text-dim">
-          {row.owner || "sem dono"} · {note}
-        </span>
-      </div>
-      <Icon aria-hidden className={cn("size-[18px] shrink-0", icon === "virada" ? "text-good" : "text-accent-text")} strokeWidth={1.75} />
-    </Surface>
+    <section aria-label="Clientes no vermelho" className={cn("flex flex-col gap-4", className)}>
+      <SectionTitle title="No vermelho" hint={`Plano de recuperação no ClickUp, ${plural(reds.length, "cliente", "clientes")}.`} />
+      {!data.clickup && <Notice tone="info">O ClickUp ainda não está ligado no servidor, então as tarefas não são criadas.</Notice>}
+      {reds.length ? (
+        <Surface light className="px-2 py-1">
+          <ul className="flex flex-col divide-y divide-line">
+            {reds.map((r) => (
+              <RedRow
+                key={r.client}
+                row={r}
+                task={taskFor(data.tasks, r.client)}
+                mission={data.missions.find((m) => m.client === r.client && !m.done) ?? null}
+                canCreate={data.clickup}
+                now={now}
+                busy={busy === r.client}
+                disabled={busy !== null}
+                onCreate={() => onCreate(r)}
+              />
+            ))}
+          </ul>
+        </Surface>
+      ) : (
+        <Empty title="Nenhum cliente no vermelho nesta rodada" text="Quando um cliente cair abaixo de 4, ele aparece aqui com a tarefa." />
+      )}
+    </section>
   );
 }
 
@@ -436,51 +427,47 @@ function RedRow({
   const open = task && !task.closed;
   const decide = row.redStreak >= STREAK;
   return (
-    <Surface
-      as="li"
-      className={cn(
-        "relative flex min-h-11 flex-wrap items-center gap-x-4 gap-y-3 overflow-hidden px-4 py-3",
-        decide && "before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-r before:bg-bad before:content-['']",
-      )}
-    >
-      <Ring value={row.score} tone={row.tone} size={40} />
-      <div className="flex min-w-0 flex-1 basis-[200px] flex-col gap-0.5">
-        <span className="truncate type-subtitle text-fg">{row.name}</span>
-        <span className="type-caption text-dim">
-          {row.owner || "sem dono"}
-          {row.meta ? ` · meta ${row.meta}` : ""} ·{" "}
-          {decide ? (
-            <b className="font-semibold text-bad">{row.redStreak} rodadas no vermelho: decidir na reunião</b>
-          ) : row.redStreak > 1 ? (
-            `${row.redStreak}ª rodada seguida no vermelho`
-          ) : (
-            "primeira rodada no vermelho"
-          )}
-        </span>
-        {mission && (
-          <span className={cn("mt-0.5 type-body", mission.blocked ? "text-warn" : "text-mute")}>
-            Missão da semana (+{mission.points}): {mission.todo.charAt(0).toLowerCase() + mission.todo.slice(1)}
+    <li className="flex flex-col gap-2.5 px-2 py-3">
+      <div className="flex items-center gap-3">
+        <Ring value={row.score} tone={row.tone} size={32} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate type-subtitle text-fg">{row.name}</span>
+          <span className="type-caption text-dim">
+            {row.owner || "sem dono"} ·{" "}
+            {decide ? (
+              <b className="font-semibold text-bad">{row.redStreak} rodadas no vermelho: decidir na reunião</b>
+            ) : row.redStreak > 1 ? (
+              `${row.redStreak}ª rodada seguida`
+            ) : (
+              "primeira rodada no vermelho"
+            )}
           </span>
-        )}
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {mission && (
+        <span className={cn("type-body", mission.blocked ? "text-warn" : "text-mute")}>
+          Missão (+{mission.points}): {mission.todo.charAt(0).toLowerCase() + mission.todo.slice(1)}
+        </span>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
         {task && <Deadline task={task} now={now} />}
         {task && (
-          <Button variant="link" href={task.url} {...EXTERNAL_LINK} iconEnd={<ArrowUpRight aria-hidden strokeWidth={1.75} />}>
+          <Button size="sm" variant="soft" href={task.url} {...EXTERNAL_LINK} iconEnd={<ArrowUpRight aria-hidden strokeWidth={1.75} />}>
             {open ? `Tarefa: ${task.status || "aberta"}` : "Tarefa fechada"}
             {task.escalated ? " · escalada" : ""}
           </Button>
         )}
         {!open && canCreate && (
-          <Button size="sm" variant="primary" onClick={onCreate} disabled={disabled} pending={busy}>
+          <Button size="sm" variant="soft" onClick={onCreate} disabled={disabled} pending={busy}>
             {task ? "Criar nova tarefa" : "Criar tarefa"}
           </Button>
         )}
       </div>
-    </Surface>
+    </li>
   );
 }
 
+/** Como pontua, num tile quieto (`Surface` nível 1 sem luz). */
 function Rules() {
   const items = [
     [`+${POINTS.leitura}`, "cliente com leitura (tem meta e número)"],
@@ -489,21 +476,22 @@ function Rules() {
     [`+${POINTS.sequencia}`, `a cada ${STREAK} rodadas seguidas no verde (selo de indicação)`],
   ];
   return (
-    <section aria-label="Como pontua" className="flex max-w-[760px] flex-col gap-3">
-      <SectionTitle title="Como pontua" />
-      <ul className="flex flex-wrap gap-x-6 gap-y-1.5 type-body text-mute">
-        {items.map(([p, t]) => (
-          <li key={t}>
-            <b className="font-semibold tabular-nums text-fg">{p}</b> {t}
-          </li>
-        ))}
-      </ul>
-      <p className="max-w-[68ch] type-body text-mute">
-        Não existe ponto negativo. XP da rodada é a média de pontos por cliente × 10, para carteira grande não ganhar só
-        pelo tamanho. O XP das rodadas fechadas soma na temporada e sobe o nível:{" "}
-        {LEVELS.map((l) => `${l.name} (${l.from})`).join(", ")}. A rodada fecha na segunda às 10h e a nota fica congelada.
-        Vermelho vira tarefa no ClickUp com prazo de 72h, e quem tira o cliente do vermelho é o número, não a tarefa fechada.
-      </p>
+    <section aria-label="Como pontua">
+      <Surface className="flex h-full flex-col gap-3 p-5">
+        <SectionTitle title="Como pontua" hint="Não existe ponto negativo." />
+        <ul className="flex flex-col gap-1.5 type-body text-mute">
+          {items.map(([p, t]) => (
+            <li key={t}>
+              <b className="mr-1.5 font-semibold tabular-nums text-fg">{p}</b> {t}
+            </li>
+          ))}
+        </ul>
+        <p className="max-w-[68ch] type-body text-mute">
+          XP da rodada é a média de pontos por cliente × 10, para carteira grande não ganhar só pelo tamanho. O XP das rodadas fechadas soma na
+          temporada e sobe o nível: {LEVELS.map((l) => `${l.name} (${l.from})`).join(", ")}. A rodada fecha na segunda às 10h e a nota fica
+          congelada. Vermelho vira tarefa no ClickUp com prazo de 72h, e quem tira o cliente do vermelho é o número, não a tarefa fechada.
+        </p>
+      </Surface>
     </section>
   );
 }

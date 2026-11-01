@@ -22,6 +22,8 @@ import type { RodadaTone } from "@/lib/placar/types";
 
 export const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** Segunda da semana como "26/10", para o eixo de gráfico curto. */
+export const shortWeek = (week: string) => `${week.slice(8, 10)}/${week.slice(5, 7)}`;
 
 /** Link externo (ClickUp) num `Button href`: o tipo do botão não conhece `target`, então entra por spread. */
 export const EXTERNAL_LINK = { target: "_blank", rel: "noreferrer" } as object;
@@ -40,10 +42,10 @@ export const ACH_ICON: Record<AchievementId, LucideIcon> = {
   "plano-72h": Timer,
 };
 
-/** Cara de cada tipo de missão: rótulo, ícone e o tom do chip (§6.4). */
+/** Cara de cada tipo de missão: rótulo, ícone e o tom do chip (§6.4). Sem ciano: o acento fica só no herói (D2.2). */
 export const KIND: Record<MissionKind, { label: string; icon: LucideIcon; tone: PillTone }> = {
   virada: { label: "Virar", icon: TrendingUp, tone: "bad" },
-  selo: { label: "Selo de indicação", icon: Award, tone: "accent" },
+  selo: { label: "Selo de indicação", icon: Award, tone: "neutral" },
   segurar: { label: "Segurar o verde", icon: Shield, tone: "warn" },
   verde: { label: "Chegar no verde", icon: Target, tone: "good" },
   cinza: { label: "Tirar do cinza", icon: PenLine, tone: "none" },

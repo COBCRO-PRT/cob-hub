@@ -3,18 +3,20 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Crown, Lock } from "lucide-react";
-import { Bar, Button, Label, Modal, Pill, PlayerLevel, Score as Ring, Surface, spring } from "@/components/ui";
+import { Columns, Empty, Gauge, Label, Modal, Pill, PlayerLevel, SectionTitle, Surface, spring, type ColumnSeries } from "@/components/ui";
 import { ACHIEVEMENTS, SEASON, TEAM_GOAL } from "@/lib/placar/rodada-rules";
 import type { SeasonLine } from "@/lib/placar/jogo";
-import type { OwnerLine, SemanaSnapshot } from "@/lib/placar/rodada";
-import type { Tone } from "@/lib/placar/score";
+import type { OwnerLine, RodadaClient, SemanaSnapshot } from "@/lib/placar/rodada";
 import { addWeeks, fmt2, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
-import { ACH_ICON, closesAt, pct, plural } from "./comum";
+import { ACH_ICON, closesAt, pct, plural, shortWeek } from "./comum";
 
 const fmtDay = (ms: number) => new Date(ms).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
-/** As 14 rodadas da temporada: fechada acende, a em andamento pulsa, a futura é só trilho. Tocar numa rodada abre as datas. */
+/**
+ * As 14 rodadas da temporada (D2.5): fechada em `fg`, a em andamento com o halo atrás, a futura só trilho.
+ * Nenhum ciano sólido: o acento aparece só como luz. Tocar numa rodada abre as datas.
+ */
 export function SeasonTrack({ season, week, live }: { season: SemanaSnapshot["season"]; week: string; live: string }) {
   const closed = new Set(season.closedWeeks);
   const [open, setOpen] = useState<number | null>(null);
@@ -49,12 +51,17 @@ export function SeasonTrack({ season, week, live }: { season: SemanaSnapshot["se
               onClick={() => setOpen(r.i)}
               aria-label={`Rodada ${r.i + 1}, ${weekLabel(r.w)}, ${status(r)}${r.isSeen ? ", em tela" : ""}`}
               aria-current={r.isSeen ? "true" : undefined}
-              className={cn(
-                "flex h-11 w-full items-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-                r.isSeen && "[&>div]:outline [&>div]:outline-2 [&>div]:outline-offset-2 [&>div]:outline-fg/60",
-              )}
+              className="relative flex h-11 w-full items-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
-              <Bar value={r.isClosed || r.isLive ? 1 : 0} max={1} size="sm" className={cn(r.isLive && "motion-safe:animate-pulse")} />
+              {r.isLive && <span aria-hidden className="pointer-events-none absolute inset-x-[-40%] -top-2 bottom-0 bg-glow-accent" />}
+              <span
+                aria-hidden
+                className={cn(
+                  "relative h-1.5 w-full rounded-full",
+                  r.isClosed ? "bg-fg" : r.isLive ? "bg-fg/60 motion-safe:animate-pulse" : "bg-line",
+                  r.isSeen && "outline outline-2 outline-offset-[3px] outline-fg/60",
+                )}
+              />
             </button>
           </li>
         ))}
@@ -74,7 +81,7 @@ export function SeasonTrack({ season, week, live }: { season: SemanaSnapshot["se
             <div className="flex flex-col gap-1">
               <dt className="type-label text-dim">Situação</dt>
               <dd className="flex flex-wrap gap-1.5">
-                <Pill tone={sel.isClosed ? "accent" : sel.isLive ? "good" : "neutral"}>{status(sel)}</Pill>
+                <Pill tone={sel.isClosed ? "good" : sel.isLive ? "warn" : "neutral"}>{status(sel)}</Pill>
                 {sel.isSeen && <Pill>em tela</Pill>}
               </dd>
             </div>
@@ -85,51 +92,129 @@ export function SeasonTrack({ season, week, live }: { season: SemanaSnapshot["se
   );
 }
 
-/** Tom do anel da meta: verde a partir dos 70%, amarelo a partir dos 40%. */
-const goalTone = (p: number): Tone => (p >= TEAM_GOAL * 100 ? "good" : p >= 40 ? "warn" : "bad");
-
 /**
- * Gesto-herói da tela (§6.4): meta do time como anel em percentual e o pódio da rodada
- * no mesmo `Surface glow`. É o único brilho de acento da Rodada.
+ * Gesto-herói da Rodada (D2.5): o medidor da meta do time com o traço em 70%, "faltam N" ao lado
+ * e, embaixo, os verdes das últimas 8 rodadas em colunas, com a semana em tela destacada.
+ * É o único halo de acento da tela.
  */
-export function TeamGoal({
+export function TeamHero({
   green,
   total,
-  owners,
-  levels,
-  onPick,
+  rows,
+  week,
+  closed,
+  className,
 }: {
   green: number;
   total: number;
-  owners: OwnerLine[];
-  levels: Map<string, SeasonLine>;
-  onPick: (o: string) => void;
+  rows: RodadaClient[];
+  week: string;
+  closed: boolean;
+  className?: string;
 }) {
   const p = pct(green, total);
   const goal = Math.round(TEAM_GOAL * 100);
   const need = Math.max(0, Math.ceil(TEAM_GOAL * total) - green);
+  const viradas = rows.filter((r) => r.badges.includes("virada")).length;
+  const prontos = rows.filter((r) => r.badges.includes("sequencia")).length;
+
+  // Verdes por semana nas últimas 8 rodadas: a trilha de cada cliente vai da mais antiga até esta.
+  const n = rows[0]?.trail.length ?? 0;
+  const series: ColumnSeries[] = Array.from({ length: n }, (_, i) => {
+    const w = addWeeks(week, i - n + 1);
+    return { key: w, label: shortWeek(w), values: { good: rows.filter((r) => r.trail[i] === "good").length } };
+  });
+
+  const gaugeLabel = `${green} de ${total} no verde, ${p}%, meta ${goal}%`;
+  const inside = (
+    <>
+      <span className="type-metric-lg text-fg">{p}%</span>
+      <span className="type-caption text-mute">no verde</span>
+    </>
+  );
+
   return (
-    <Surface glow className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
-      <div className="flex items-center gap-5">
-        <Ring value={total ? (green / total) * 10 : null} tone={goalTone(p)} size={56} label={`${green} de ${total} no verde, meta ${goal}%`} />
-        <div className="flex min-w-0 flex-col gap-1">
+    <Surface glow light className={cn("flex flex-col gap-6 p-5 sm:p-6", className)}>
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
+        <Gauge value={p} marker={goal} size={220} label={gaugeLabel} className="max-sm:hidden">
+          {inside}
+        </Gauge>
+        <Gauge value={p} marker={goal} size={180} label={gaugeLabel} className="sm:hidden">
+          {inside}
+        </Gauge>
+        <div className="flex min-w-0 flex-col gap-1.5 text-center sm:text-left">
+          <Label>Meta do time</Label>
           <span className="type-title text-fg">{need ? `faltam ${plural(need, "cliente", "clientes")} no verde` : "meta do time batida"}</span>
           <span className="type-caption text-mute">
-            <span className="tabular-nums">{green} de {total}</span> no verde · <span className="tabular-nums">{p}%</span> hoje, meta {goal}% em janeiro
+            <span className="tabular-nums">
+              {green} de {total}
+            </span>{" "}
+            no verde hoje, meta {goal}% em janeiro
           </span>
+          {(viradas > 0 || prontos > 0) && (
+            <span className="flex flex-wrap justify-center gap-1.5 pt-1 sm:justify-start">
+              {viradas > 0 && <Pill tone="good">{plural(viradas, "virada", "viradas")}</Pill>}
+              {prontos > 0 && <Pill>{plural(prontos, "pronto para indicação", "prontos para indicação")}</Pill>}
+            </span>
+          )}
         </div>
       </div>
-      <div className="min-w-0">
-        {owners.length ? <Podium owners={owners} levels={levels} onPick={onPick} /> : <p className="type-body text-mute">Nenhum cliente com dono nesta rodada.</p>}
-      </div>
+
+      {series.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <Label>No verde, últimas {n} rodadas</Label>
+            <span className="type-caption text-dim">{closed ? "até a rodada fechada" : "esta semana ainda muda"}</span>
+          </div>
+          <Columns
+            series={series}
+            highlight={week}
+            height={72}
+            compact
+            label={`Clientes no verde por semana: ${series.map((s) => `${s.label} ${s.values.good ?? 0}`).join(", ")}`}
+          />
+        </div>
+      )}
     </Surface>
   );
 }
 
-const MAX_H = 112;
-const MIN_H = 40;
+/** Tile do pódio (D2.5): três colunas de altura proporcional ao XP, 1º com fio dourado, 4º em linha abaixo. */
+export function PodiumCard({
+  owners,
+  levels,
+  onPick,
+  closed,
+  className,
+}: {
+  owners: OwnerLine[];
+  levels: Map<string, SeasonLine>;
+  onPick: (o: string) => void;
+  closed: boolean;
+  className?: string;
+}) {
+  return (
+    <Surface light className={cn("flex flex-col gap-5 p-5 sm:p-6", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <div className="flex flex-col gap-0.5">
+          <Label>Pódio da rodada</Label>
+          <span className="type-caption text-mute">Toque numa pessoa para ver as missões dela.</span>
+        </div>
+        <Pill>{closed ? "rodada fechada" : "prévia, ainda muda"}</Pill>
+      </div>
+      {owners.length ? (
+        <Podium owners={owners} levels={levels} onPick={onPick} />
+      ) : (
+        <Empty title="Nenhum cliente com dono nesta rodada" text="Dê um dono aos clientes no placar para o pódio aparecer." />
+      )}
+    </Surface>
+  );
+}
 
-/** Pódio: 2º, 1º e 3º lado a lado, coluna com altura proporcional ao XP, 1º com fio dourado. Quem vem depois, em lista. */
+const MAX_H = 128;
+const MIN_H = 64;
+
+/** Pódio: 2º, 1º e 3º lado a lado, coluna com altura proporcional ao XP, 1º com fio dourado. Quem vem depois, em linha. */
 export function Podium({
   owners,
   levels,
@@ -151,7 +236,7 @@ export function Podium({
   const maxXp = Math.max(1, ...top.map((o) => o.xp));
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex items-end justify-center gap-2.5">
         {order.map((o) => {
           const pos = owners.indexOf(o);
@@ -163,23 +248,26 @@ export function Podium({
               key={o.owner}
               {...(onPick ? { type: "button" as const, onClick: () => onPick(o.owner), "aria-label": `${pos + 1}º ${o.owner}, ${o.xp} XP. Ver as missões de ${o.owner}` } : {})}
               className={cn(
-                "group flex w-[31%] max-w-[170px] flex-col items-center gap-2 rounded-md outline-none",
+                "group flex w-[31%] max-w-[180px] flex-col items-center gap-2 rounded-md outline-none",
                 onPick && "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
               )}
             >
-              <span className="flex flex-col items-center gap-0.5">
-                {lead && <Crown aria-hidden className="size-[18px] text-gold" strokeWidth={1.75} />}
+              <span className="flex max-w-full flex-col items-center gap-0.5">
+                {lead && <Crown aria-hidden className="size-4 text-gold" strokeWidth={1.75} />}
                 <span className={cn("max-w-full truncate type-subtitle text-fg", onPick && "group-hover:underline")}>{o.owner}</span>
                 <span className="type-caption text-dim">{levels?.get(o.owner)?.level.name ?? "Estreante"}</span>
               </span>
               <motion.span
-                className={cn("flex w-full flex-col items-center justify-start gap-1 rounded-t-md bg-surface-2 pt-3 shadow-relief", lead ? "border-t-2 border-gold" : "border-t border-line")}
+                className={cn(
+                  "flex w-full flex-col items-center justify-start gap-1 rounded-t-md bg-surface-2 pt-3",
+                  lead ? "border-t-2 border-gold" : "border-t border-line-strong",
+                )}
                 style={{ height: h, originY: 1 }}
                 initial={reduce ? false : { scaleY: 0, opacity: 0 }}
                 animate={{ scaleY: 1, opacity: 1 }}
                 transition={{ ...spring, delay: reduce ? 0 : delay + stagger * (2 - pos) }}
               >
-                <span className="type-metric-sm text-fg">{o.xp}</span>
+                <span className="type-metric text-fg">{o.xp}</span>
                 <Label>XP · {pos + 1}º</Label>
               </motion.span>
             </Tag>
@@ -187,20 +275,22 @@ export function Podium({
         })}
       </div>
       {rest.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col divide-y divide-line">
           {rest.map((o, i) => (
-            <li key={o.owner} className="flex min-h-11 items-center justify-between gap-3 px-1">
-              <span className="type-body text-mute">
-                <span className="mr-1.5 tabular-nums text-dim">{i + 4}º</span>
+            <li key={o.owner} className="flex min-h-10 items-center justify-between gap-3 px-1">
+              <span className="flex items-center gap-2 type-body text-mute">
+                <span className="tabular-nums text-dim">{i + 4}º</span>
                 {onPick ? (
-                  <Button variant="link" onClick={() => onPick(o.owner)}>
+                  <button type="button" onClick={() => onPick(o.owner)} className="rounded-sm font-medium text-fg underline-offset-4 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                     {o.owner}
-                  </Button>
+                  </button>
                 ) : (
-                  o.owner
+                  <span className="font-medium text-fg">{o.owner}</span>
                 )}
               </span>
-              <span className="type-body tabular-nums text-fg">{o.xp} XP</span>
+              <span className="type-metric-sm text-fg">
+                {o.xp} <span className="type-caption font-medium text-dim">XP</span>
+              </span>
             </li>
           ))}
         </ul>
@@ -217,73 +307,85 @@ export function Podium({
   );
 }
 
-/** Tabela da temporada: XP acumulado, nível e selos. Clicar filtra a pessoa. */
-export function SeasonTable({ table, picked, onPick }: { table: SeasonLine[]; picked: string; onPick: (o: string) => void }) {
+/** Tabela da temporada (D2.5): 4 linhas com posição, nome, nível e as conquistas como ícones. Clicar filtra a pessoa. */
+export function SeasonTable({ table, picked, onPick, className }: { table: SeasonLine[]; picked: string; onPick: (o: string) => void; className?: string }) {
   return (
-    <ol className="flex flex-col gap-2">
-      {table.map((l, i) => {
-        const active = picked === l.owner;
-        return (
-          <li key={l.owner}>
-            <Surface
-              as="button"
-              interactive
-              level={active ? 2 : 1}
-              type="button"
-              onClick={() => onPick(active ? "todos" : l.owner)}
-              aria-pressed={active}
-              className={cn("grid w-full min-h-11 grid-cols-[28px_minmax(0,1fr)] gap-x-3 gap-y-2 px-4 py-3 text-left sm:grid-cols-[28px_minmax(0,1fr)_auto] sm:items-center", active && "border-line-strong")}
-            >
-              <span className="type-caption tabular-nums text-dim">{i + 1}º</span>
-              <span className="flex min-w-0 flex-col gap-1.5">
-                <span className="flex items-baseline justify-between gap-3">
-                  <span className="truncate type-subtitle text-fg">{l.owner}</span>
-                  <span className="shrink-0 type-metric-sm text-fg">
-                    {l.xp} <span className="type-caption font-medium text-dim">XP</span>
-                  </span>
-                </span>
-                <PlayerLevel xp={l.xp} level={l.level} size="md" />
-                <span className="type-caption text-dim">{plural(l.rounds, "rodada fechada", "rodadas fechadas")}</span>
-              </span>
-              <span className="col-start-2 flex gap-1.5 sm:col-start-3" aria-label={`${l.achievements.length} de ${ACHIEVEMENTS.length} conquistas`}>
-                {ACHIEVEMENTS.map((a) => {
-                  const Icon = ACH_ICON[a.id];
-                  const on = l.achievements.includes(a.id);
-                  return <Icon key={a.id} aria-hidden className={cn("size-[18px]", on ? "text-fg" : "text-mute opacity-50")} strokeWidth={1.75} />;
-                })}
-              </span>
-            </Surface>
-          </li>
-        );
-      })}
-    </ol>
+    <section id="temporada" aria-label="Tabela da temporada" className={cn("scroll-mt-20", className)}>
+      <Surface className="flex h-full flex-col gap-3 p-5">
+        <SectionTitle title="Tabela da temporada" hint="Só rodada fechada soma." />
+        {table.length ? (
+          <ol className="-mx-2 flex flex-col divide-y divide-line">
+            {table.map((l, i) => {
+              const active = picked === l.owner;
+              const gold = l.level.name === "Lenda";
+              return (
+                <li key={l.owner}>
+                  <button
+                    type="button"
+                    onClick={() => onPick(active ? "todos" : l.owner)}
+                    aria-pressed={active}
+                    className={cn(
+                      "grid w-full grid-cols-[24px_minmax(0,1fr)] items-start gap-x-2 rounded-md px-2 py-3 text-left outline-none motion-safe:transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                      active && "bg-surface-2",
+                    )}
+                  >
+                    <span className="pt-0.5 type-caption tabular-nums text-dim">{i + 1}º</span>
+                    <span className="flex min-w-0 flex-col gap-1.5">
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="truncate type-subtitle text-fg">{l.owner}</span>
+                        <span className="flex shrink-0 gap-1" aria-label={`${l.achievements.length} de ${ACHIEVEMENTS.length} conquistas`}>
+                          {ACHIEVEMENTS.map((a) => {
+                            const Icon = ACH_ICON[a.id];
+                            const on = l.achievements.includes(a.id);
+                            return <Icon key={a.id} aria-hidden className={cn("size-4", on ? "text-fg" : "text-dim opacity-60")} strokeWidth={1.75} />;
+                          })}
+                        </span>
+                      </span>
+                      {/* A barra do nível fica em `fg` fora da Lenda: o ciano é só do herói (D2.2). */}
+                      <PlayerLevel xp={l.xp} level={l.level} size="sm" className={cn(!gold && "[&_[role=progressbar]>div]:bg-fg")} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <Empty title="Nenhuma rodada fechada ainda" text="A tabela começa quando a primeira rodada fechar, segunda às 10h." />
+        )}
+      </Surface>
+    </section>
   );
 }
 
-/** Mural das conquistas da temporada: quem já destravou cada uma. */
-export function Conquistas({ table }: { table: SeasonLine[] }) {
+/** Conquistas da temporada em lista compacta: quem já destravou cada uma. */
+export function Conquistas({ table, className }: { table: SeasonLine[]; className?: string }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {ACHIEVEMENTS.map((a) => {
-        const Icon = ACH_ICON[a.id];
-        const who = table.filter((l) => l.achievements.includes(a.id)).map((l) => l.owner);
-        const progress = a.id === "hat-trick" ? table.filter((l) => l.progress["hat-trick"] && l.viradas > 0) : [];
-        const on = who.length > 0;
-        return (
-          <Surface as="li" key={a.id} className="flex gap-3 px-4 py-3">
-            <span className={cn("mt-0.5 shrink-0", on ? "text-fg" : "text-dim")}>
-              {on ? <Icon aria-hidden className="size-5" strokeWidth={1.75} /> : <Lock aria-hidden className="size-5" strokeWidth={1.75} />}
-            </span>
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className={cn("type-subtitle", on ? "text-fg" : "text-mute")}>{a.name}</span>
-              <span className="type-caption text-dim">{a.how}</span>
-              <span className="mt-1 type-caption text-mute">
-                {on ? who.join(", ") : progress.length ? progress.map((l) => `${l.owner} ${l.progress["hat-trick"]}`).join(", ") : "ninguém ainda"}
-              </span>
-            </span>
-          </Surface>
-        );
-      })}
-    </ul>
+    <section aria-label="Conquistas da temporada" className={className}>
+      <Surface className="flex h-full flex-col gap-3 p-5">
+        <SectionTitle title="Conquistas da temporada" hint="Não dão ponto, marcam o caminho." />
+        <ul className="flex flex-col divide-y divide-line">
+          {ACHIEVEMENTS.map((a) => {
+            const Icon = ACH_ICON[a.id];
+            const who = table.filter((l) => l.achievements.includes(a.id)).map((l) => l.owner);
+            const progress = a.id === "hat-trick" ? table.filter((l) => l.progress["hat-trick"] && l.viradas > 0) : [];
+            const on = who.length > 0;
+            return (
+              <li key={a.id} className="flex items-center gap-3 py-2.5">
+                <span className={cn("shrink-0", on ? "text-fg" : "text-dim")}>
+                  {on ? <Icon aria-hidden className="size-4" strokeWidth={1.75} /> : <Lock aria-hidden className="size-4" strokeWidth={1.75} />}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className={cn("type-body font-semibold", on ? "text-fg" : "text-mute")}>{a.name}</span>
+                  <span className="type-caption text-dim">{a.how}</span>
+                </span>
+                <span className="max-w-[40%] shrink-0 truncate text-right type-caption text-mute">
+                  {on ? who.join(", ") : progress.length ? progress.map((l) => `${l.owner} ${l.progress["hat-trick"]}`).join(", ") : "ninguém ainda"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Surface>
+    </section>
   );
 }

@@ -49,7 +49,7 @@ export function Confetti({ seed, pieces = 90 }: { seed: number; pieces?: number 
   );
 }
 
-/** Revelação da rodada fechada: título, número herói, pódio subindo, viradas e selos. Abre sozinha uma vez por navegador. */
+/** Revelação da rodada fechada: título, número herói em `metric-lg`, o mesmo pódio do herói subindo, viradas e selos. Abre sozinha uma vez por navegador. */
 export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () => void }) {
   const reduce = useReducedMotion();
   useEffect(() => {
@@ -84,7 +84,7 @@ export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () =>
       {party && <Confetti seed={Date.parse(data.week) / 86400000} />}
       <div className="flex w-full max-w-[560px] flex-col items-center gap-8 py-6 text-center">
         <motion.div {...step(0)} className="flex flex-col items-center gap-3">
-          <Label tone="accent">
+          <Label>
             {data.season.name}
             {data.season.round ? ` · rodada ${data.season.round} de ${data.season.rounds}` : ""}
           </Label>
@@ -109,7 +109,7 @@ export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () =>
             ))}
             {selos.map((r) => (
               <span key={r.client} className="flex items-center justify-center gap-2 type-body text-fg">
-                <Award aria-hidden className="size-4 text-accent-text" strokeWidth={1.75} />
+                <Award aria-hidden className="size-4 text-gold" strokeWidth={1.75} />
                 Pronto para indicação: <b className="font-semibold">{r.name}</b>
               </span>
             ))}
