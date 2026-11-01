@@ -116,3 +116,7 @@ A tarefa do vermelho diz quanto falta lançar para virar e o que vale: virada +5
 | `PLACAR_TASK_PREFIX` | Só para teste: prefixo no nome da tarefa (ex.: `[TESTE] `). |
 
 Tabelas: `supabase/placar-rodada.sql` (idempotente, mesmo padrão de acesso de `placar.sql`).
+
+## Semana padrão da tela
+
+Sem `?week=`, a tela e a API abrem em `defaultRodadaWeek()` (`rodada-rules.ts`): a última semana terminada, ou a 1ª rodada da temporada enquanto nenhuma fechou. Antes disso a tela abria na semana anterior à temporada e dizia "fora da temporada" (corrigido em 01/11/2026).
