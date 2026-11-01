@@ -1,8 +1,8 @@
 import type { Tone } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 
-const FILL: Record<Tone | "accent", string> = { good: "fill-good", warn: "fill-warn", bad: "fill-bad", none: "fill-none", accent: "fill-accent" };
-const STROKE: Record<Tone | "accent", string> = { good: "stroke-good", warn: "stroke-warn", bad: "stroke-bad", none: "stroke-none", accent: "stroke-accent" };
+const FILL: Record<Tone | "accent", string> = { good: "fill-good", warn: "fill-warn", bad: "fill-bad", none: "fill-dim", accent: "fill-accent" };
+const STROKE: Record<Tone | "accent", string> = { good: "stroke-good", warn: "stroke-warn", bad: "stroke-bad", none: "stroke-dim", accent: "stroke-accent" };
 
 const BAR = 3;
 const GAP = 3;

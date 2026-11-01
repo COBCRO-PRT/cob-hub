@@ -5,7 +5,7 @@ import type { Tone } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 import { dur, ease } from "./motion";
 
-const FILL: Record<Tone | "accent", string> = { good: "bg-good", warn: "bg-warn", bad: "bg-bad", none: "bg-none", accent: "bg-accent" };
+const FILL: Record<Tone | "accent" | "fg", string> = { good: "bg-good", warn: "bg-warn", bad: "bg-bad", none: "bg-none", accent: "bg-accent", fg: "bg-fg" };
 
 /** A única barra de progresso (§5). Enche uma vez ao entrar; depois interpola. `marker` é o traço da meta. Sem `label` é decorativa (aria-hidden). */
 export function Bar({
@@ -19,7 +19,7 @@ export function Bar({
 }: {
   value: number;
   max: number;
-  tone?: Tone | "accent";
+  tone?: Tone | "accent" | "fg";
   size?: "sm" | "md";
   marker?: number;
   label?: string;

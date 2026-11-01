@@ -13,7 +13,7 @@ const FONT: Record<32 | 40 | 56, string> = { 32: "text-xs font-bold tabular-nums
 const R = 17;
 const C = 2 * Math.PI * R;
 
-export const fmtScore = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+export const fmtScore = (n: number) => (n >= 10 ? "10" : n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
 
 /** O anel da Arena (§5): nota de 0 a 10 como arco no tom. `null` = anel tracejado com "s/n". */
 export function Score({
