@@ -6,10 +6,10 @@ import { ArrowUpRight, Award, Play, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button, CONTAINER, Empty, Notice, Pill, Score as Ring, SectionTitle, Skeleton, Surface } from "@/components/ui";
 import { PageHeader } from "./PageHeader";
-import { LEVELS, POINTS, STREAK } from "@/lib/placar/rodada-rules";
+import { LEVELS, POINTS, STREAK, defaultRodadaWeek } from "@/lib/placar/rodada-rules";
 import type { Mission } from "@/lib/placar/jogo";
 import type { RodadaClient, RodadaTaskInfo, SemanaSnapshot } from "@/lib/placar/rodada";
-import { addWeeks, lastClosedWeek, mondayOf, weekLabel } from "@/lib/placar/score";
+import { addWeeks, mondayOf, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 import { EXTERNAL_LINK, TONE_LABEL, closesAt, useNow } from "./semana/comum";
 import { ClientMap, Missions, PersonFilter, matches } from "./semana/Missoes";
@@ -49,7 +49,7 @@ const missionKey = (m: Mission) => `${m.client}_${m.kind}`;
 export function SemanaBoard({ who, admin = false }: { who?: string; admin?: boolean }) {
   const mounted = useMounted();
   const [pickedWeek, setPickedWeek] = useState<string | null>(null);
-  const week = pickedWeek ?? (mounted ? lastClosedWeek() : null);
+  const week = pickedWeek ?? (mounted ? defaultRodadaWeek() : null);
   const currentMonday = mounted ? mondayOf(new Date()) : null;
 
   const [data, setData] = useState<Snapshot | null>(null);

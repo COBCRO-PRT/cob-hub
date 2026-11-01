@@ -12,7 +12,7 @@ import { cookies } from "next/headers";
 import { USER_COOKIE_NAME, readSession, type Pessoa } from "@/lib/gate-pessoa";
 import { clickupConfig } from "@/lib/clickup";
 import { closeWeek, ensureRedTask, needForTask, semanaSnapshot, syncTasks } from "./rodada";
-import { QUARTER_START } from "./rodada-rules";
+import { defaultRodadaWeek } from "./rodada-rules";
 import { addWeeks, isMonday, lastClosedWeek, mondayOf } from "./score";
 import { getStore } from "./store";
 
@@ -50,8 +50,7 @@ export async function semanaGet(request: Request) {
   const who = await pessoa();
   if (!who) return fail(401, "Sessão expirada. Recarregue a página e entre de novo.");
   const raw = new URL(request.url).searchParams.get("week");
-  // Sem parâmetro, a rodada a fechar; antes da 1ª rodada da temporada, a própria 1ª (em prévia).
-  const week = raw ? weekParam(raw) : lastClosedWeek() < QUARTER_START ? QUARTER_START : lastClosedWeek();
+  const week = raw ? weekParam(raw) : defaultRodadaWeek();
   if (!week) return fail(400, "Semana inválida.");
   try {
     const snap = await semanaSnapshot(await getStore(), week);

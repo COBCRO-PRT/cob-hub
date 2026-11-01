@@ -2,9 +2,16 @@
  * Números da Rodada da semana, num arquivo sem dependência de servidor para a
  * tela e o fechamento lerem os mesmos valores. Regras em docs/placar-semana.md.
  */
+import { lastClosedWeek } from "./score";
 
 /** Primeira rodada do trimestre nov a jan (fecha em 02/11/2026). */
 export const QUARTER_START = "2026-10-26";
+
+/** Rodada que a tela abre sem parâmetro: a última semana terminada; antes da 1ª rodada, a própria 1ª (em prévia). */
+export function defaultRodadaWeek(): string {
+  const w = lastClosedWeek();
+  return w < QUARTER_START ? QUARTER_START : w;
+}
 /** Meta do time: parte da carteira ativa no verde em janeiro. */
 export const TEAM_GOAL = 0.7;
 export const POINTS = { leitura: 1, verde: 2, virada: 5, sequencia: 5 } as const;
