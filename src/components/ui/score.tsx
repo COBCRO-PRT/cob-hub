@@ -21,6 +21,7 @@ export function Score({
   tone,
   size = 40,
   label,
+  bare = false,
   className,
 }: {
   value: number | null;
@@ -28,6 +29,8 @@ export function Score({
   size?: 32 | 40 | 56;
   /** Texto para leitor de tela; padrão "nota 9,2, verde". */
   label?: string;
+  /** Só o arco, sem o número dentro (lista densa, D2.4). */
+  bare?: boolean;
   className?: string;
 }) {
   const reduce = useReducedMotion();
@@ -58,7 +61,7 @@ export function Score({
           />
         )}
       </svg>
-      <span className="relative">{value === null ? "s/n" : fmtScore(value)}</span>
+      {!bare && <span className="relative">{value === null ? "s/n" : fmtScore(value)}</span>}
     </span>
   );
 }

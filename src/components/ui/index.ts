@@ -9,6 +9,10 @@ export { Metric, fmtNumber } from "./metric";
 export { Score, fmtScore } from "./score";
 export { Trail } from "./trail";
 export { Bar } from "./bar";
+export { Spark } from "./spark";
+export { Columns, type ColumnSeries } from "./columns";
+export { KpiCard } from "./kpi-card";
+export { Gauge } from "./gauge";
 export { PlayerLevel } from "./player-level";
 export { Modal } from "./modal";
 export { Empty } from "./empty";
@@ -16,5 +20,5 @@ export { Notice } from "./notice";
 export { Skeleton } from "./skeleton";
 export { spring, ease, dur, panelIn, fade } from "./motion";
 
-/** Contêiner único de todas as telas (§4.4): mesma margem do HUD. */
-export const CONTAINER = "mx-auto w-full max-w-[1280px] px-4 pt-8 pb-24 sm:px-6 lg:px-10";
+/** Contêiner único de todas as telas (D2.3): dentro da casca, ao lado da sidebar. */
+export const CONTAINER = "mx-auto w-full max-w-[1440px] px-4 pt-6 pb-24 sm:px-6 lg:px-8";

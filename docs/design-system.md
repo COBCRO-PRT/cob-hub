@@ -397,3 +397,158 @@ escolher; sem git, cada tela fecha com um backup datado em `~/Projects/_backups/
 - `Score` de 56px usa texto de 20px, não `type-metric` (28px): "9,2" não cabe no anel.
 - O `/api/placar/eu` também é relido quando a aba volta ao foco, não só a cada 60s.
 - Linha do Placar fechou em 62px (py 10px): 12 linhas em 900px de altura.
+
+---
+
+# Direção 2: Bento (01/11/2026)
+
+Pedido do Matheus em 01/11/2026: "quero ajustar o layout para essa linha", com três referências do Behance:
+ORVIX (AI Workforce Dashboard, Manrope, fundo carvão com névoa roxa e laranja), MONIVO (AI Finance Dashboard,
+Inter Display, preto `#0E0E0E` com laranja `#DB5B14`) e KIVOO (fintech, Urbanist, preto com amarelo elétrico).
+Decisões dele no mesmo dia: **sidebar fixa**, **ciano continua, usado menos**, **escopo: tudo** (Início, Placar,
+Rodada, Notas, login, HUD, menu rápido).
+
+Esta seção muda o que está escrito acima. Onde não diz nada, vale a direção Arena.
+
+## D2.1 O que a linha tem (lido nas três referências)
+
+1. Trilho lateral de navegação com ícones e rótulos curtos; conteúdo numa grade bento de 12 colunas.
+2. KPI com gráfico dentro do card: barras finas ou linha das últimas semanas, número grande em peso médio,
+   decimal ou unidade apagada ao lado.
+3. Um gráfico-herói grande ocupando o centro e colunas laterais com listas curtas ("ver todas").
+4. Luz em vez de borda: fundo quase preto, card um tom acima com gradiente suave vindo de um canto, halo do
+   acento só atrás do herói. Borda hairline continua, mas quase some.
+5. Tipografia leve e grande: títulos em peso 500 e 600, números em 500, rótulos pequenos em `mute`.
+6. Um único acento quente usado em três lugares por tela: a barra destacada do gráfico, o anel ou medidor
+   principal e um botão. O resto é cinza.
+
+## D2.2 Tokens que mudam
+
+| Token | Arena | Bento | Por quê |
+|---|---|---|---|
+| `bg` | `#07080a` | `#0a0b0d` | referências ficam em carvão, não em azul-preto |
+| `surface-1` | `#0c0e11` | `#111316` | card um tom acima do fundo, legível sem borda |
+| `surface-2` | `#11141a` | `#171a1f` | |
+| `surface-3` | `#161a21` | `#1d2127` | |
+| `line` | `.08` | `.06` | a luz faz o trabalho da borda |
+| `line-strong` | `.14` | `.12` | |
+| novo `glow-card` | | `radial-gradient(90% 80% at 100% 0%, rgba(255,255,255,.05), transparent 60%)` | luz de canto de todo card de topo (KPI, herói, pódio) |
+| novo `glow-accent` | | `radial-gradient(70% 60% at 50% 0%, rgba(0,229,255,.16), transparent 70%)` | halo atrás do gesto-herói, um por tela |
+| novo `sidebar` | | `248px` desktop, `72px` em `lg` estreito (ícone só), barra inferior abaixo de `sm` | |
+| `display` | 32/800 | 30/600, tracking -0,02em | peso cai |
+| `title` | 20/700 | 18/600 | |
+| `metric-lg` | 40/700 | 44/500, tracking -0,03em | número grande e leve, como nas referências |
+| `metric` | 28/700 | 30/500 | |
+| `metric-sm` | 16/700 | 16/600 | |
+| `label` | mono 11 caixa alta | Onest 11/500 caixa alta, tracking .08em, **mono sai** | mono em rótulo era resíduo de terminal |
+
+Fonte continua **Onest** (não entra dependência nova; Onest tem o desenho geométrico de Manrope). Mono fica só
+para `Kbd`, host e identificador. `good`, `warn`, `bad`, `gold` não mudam.
+
+**Regra do ciano (decisão de 01/11):** por tela, o acento aparece em no máximo três lugares: o halo e o arco do
+gesto-herói, a barra ou segmento destacado do gráfico e **um** botão primário. Aba ativa, filtro selecionado, foco
+e link usam `fg` sobre `surface-2` ou sublinhado em `fg`; o ciano só volta no `focus-visible` (acessibilidade).
+"Lançar" em ciano na lista sai: vira `Button soft` (cinza claro) e o único primário da tela é "Novo cliente".
+
+## D2.3 Casca (`Shell`): sidebar + conteúdo
+
+- `src/components/shell/Shell.tsx` substitui `Hud.tsx` como moldura. O `layout.tsx` monta `Shell` com
+  `pessoa` e o `children`.
+- **Desktop (`lg` e acima):** sidebar fixa à esquerda, `248px`, `surface-1`, borda direita `line`. De cima para
+  baixo: logo COB (altura 16) + "Hub" em `caption` `dim`; "Ir para…" como campo falso com `Kbd ⌘K`; grupo
+  **Mapa** com Início, Placar, Rodada (contador de missões como `Pill` pequena à direita), Financeiro (admin);
+  grupo **Atalhos** com os 4 destinos mais recentes (`cob-hub-recentes`); no rodapé o cartão do jogador
+  (avatar, nome, nível, `PlayerLevel`, menu ao clicar como hoje). Item ativo: `surface-2`, texto `fg`, barra
+  de 2px à esquerda em `fg` (não em ciano). Ícones lucide 18px, `strokeWidth 1.75`.
+- **Entre `md` e `lg`:** sidebar estreita de `72px`, só ícones com `title`; cartão do jogador vira avatar.
+- **Abaixo de `md`:** sem sidebar; cabeçalho de 52px com logo e avatar, e a barra inferior de hoje (Início,
+  Placar, Rodada, Financeiro) com o mesmo `layoutId`.
+- Conteúdo: `main` com `pl-[248px]` (ou 72) e `max-w-[1440px]` interno, `px-6 lg:px-8 pt-6 pb-24`. O
+  `CONTAINER` do `ui/index.ts` passa a ser esse. Telas de login não têm casca (como hoje).
+- Menu rápido (⌘K) e teclas continuam iguais (`docs/navegacao.md` vale); só a pele muda para os tokens novos.
+
+## D2.4 Primitivos novos e mudados (`src/components/ui`)
+
+| Primitivo | Props | Notas |
+|---|---|---|
+| `Spark` (novo) | `values: (number\|null)[]`, `tone`, `kind: "bars" \| "line"`, `highlight?: number`, `height` (24/40) | o gráfico de dentro do KPI. Barras finas (2px, gap 3px) em `line-strong`; a barra `highlight` no tom ou em `accent`. Linha: `polyline` sem área. SVG puro, sem dependência |
+| `Columns` (novo) | `series: {label, values: Record<Tone, number>}[]`, `highlight?`, `onPick?` | o gráfico-herói: colunas empilhadas por tom (verde, amarelo, vermelho, cinza) nas últimas 8 semanas ou nas 14 rodadas. Coluna da semana em tela ganha o halo. Eixo com rótulos em `caption` `dim`; sem grade, só a linha da base. Toque mostra folha com os números |
+| `KpiCard` (novo) | `label`, `value`, `unit?`, `sub?`, `tone?`, `spark?` | `Surface` com `glow-card`, `Metric lg` + `Spark` à direita embaixo. Substitui o par `Surface` + `Metric` solto |
+| `Gauge` (novo) | `value 0-100`, `marker`, `size` | meio-anel de 180° para a meta do time (como o "65 Your Score" do MONIVO). Arco `line`, preenchimento `accent` com halo, traço da meta em `fg`. Só no herói do Início e da Rodada |
+| `Surface` | ganha `light?: boolean` | liga o `glow-card`. `glow` continua sendo o halo de acento |
+| `Metric` | peso e tamanho novos; ganha `fraction?` | decimal ou unidade em `dim` (R$ 17.599**,00** apagado) |
+| `Score` | trilho em `line`; o arco em tom; anel de 32 sem número dentro na lista densa | |
+| `Label` | sem mono | |
+
+Tudo que não está aqui segue §5.
+
+## D2.5 Telas
+
+### Início
+Grade bento de 12 colunas. Linha 1: **herói** (col-span 8) = `Surface glow light` com `Gauge` da meta do time
+(verdes/total, traço em 70%), "N de M no verde", missões abertas, "fecha em", botões "Continuar a rodada"
+(primário, o único da tela) e "Lançar números" (soft); **cartão do jogador** (col-span 4) = nível, XP, barra,
+próxima conquista. Linha 2: três `KpiCard` (verdes, vermelhos, sem leitura) com `Spark bars` das 8 semanas,
+cada um col-span 4. Depois as prateleiras como hoje, mas os cards de ferramenta ficam em grade de 4 colunas com
+`Surface light`, letra da marca em caixa 36px, sem `Kbd` visível (a tecla continua funcionando, aparece no hover
+e no `title`). Sem login: herói vira "Entre para jogar a rodada" e os KPIs somem.
+
+### Placar de Clientes
+- Cabeçalho: `display` + navegação de semana à direita, "Novo cliente" primário. "Rodada da semana" vira item
+  da sidebar, sai do cabeçalho.
+- Linha 1 (bento): 4 `KpiCard` col-span 3: No verde (spark das 8 semanas, destacada a atual), No vermelho,
+  Sem leitura, Nota média.
+- Linha 2: **gráfico-herói** `Columns` (col-span 8, altura 260): carteira por semana nas últimas 8, empilhada
+  por tom, com a legenda em `Pill` e a semana em tela com halo. À direita (col-span 4), `Surface light` "No
+  vermelho" com até 4 clientes (`Score 32`, nome, o que falta) e "Ver todos" que filtra a lista; abaixo, "Sem
+  leitura" com a contagem por dono.
+- Filtro de donos: uma linha de chips com `Score 32` + nome; selecionado em `surface-2` + `fg`.
+- Lista: linhas de **56px** com gap 4px, `Surface` nível 1 sem `light` (a lista fica quieta). Colunas: anel 32,
+  cliente (nome `subtitle` 15/600 + escopo `caption`), dono, meta (uma linha, `body`), resultado (número
+  `metric-sm` + "de meta" em `dim`), `Trail`, ação (`Button soft sm` "Lançar" quando falta; `Pill good`
+  "Lançado" quando há; "Editar" só no hover e no menu da folha). 14 linhas em 900px.
+- Vista do financeiro: igual, com a coluna de mensalidade e os 4 KPIs em R$.
+
+### Rodada da semana
+- Cabeçalho + trilha das 14 rodadas (igual, segmentos em `fg` para fechadas e halo na atual).
+- Linha 1: **herói** (col-span 7) = `Gauge` grande da meta do time + "faltam N" + `Columns` pequeno (14
+  rodadas, só verdes, altura 80) embaixo; **pódio** (col-span 5) = três colunas de altura proporcional ao XP,
+  1º com fio `gold`, 4º em linha abaixo.
+- Linha 2: **Missões** (col-span 8): grade 2 colunas de cards `Surface light`, a de virada em destaque com
+  `Score 40` e barra do que falta; **Vermelhos** (col-span 4): lista com prazo e link do ClickUp.
+- Linha 3: **Mapa da carteira** (col-span 8): grade de `Score 32` + nome; **Tabela da temporada** (col-span 4):
+  4 linhas com `PlayerLevel` e conquistas como ícones.
+- Conquistas e "Como pontua" viram uma seção de 2 colunas abaixo, mais baixa.
+- Revelação continua como está (overlay).
+
+### Notas do mês
+- Cabeçalho + seletor de competência. Linha 1: 3 `KpiCard` (notas a emitir, valor do lote, emitidas) com spark
+  dos últimos 6 meses se houver dado. Tabela em `Surface` única com linhas de 48px, sem borda em cada linha
+  (zebra em `surface-2` a cada 2). Barra de ação fixa igual.
+
+### Login
+- Sem casca. `Surface light` de 400px centrada, logo, `title` 600, `Field`, botão primário. Fundo com um
+  único `glow-accent` bem fraco no topo da tela.
+
+## D2.6 Critérios de pronto desta direção
+
+| Critério | Pronto |
+|---|---|
+| Ciano por tela (fora de `focus-visible`) | ≤ 3 ocorrências visíveis (halo, destaque do gráfico, 1 botão) |
+| Sidebar em 1440, 1024 e 390 | 248px, 72px, barra inferior; sem rolagem horizontal |
+| KPI com spark | Início 3, Placar 4, Notas 3 |
+| Gráfico-herói | Placar e Rodada (`Columns`), Início e Rodada (`Gauge`) |
+| Linhas da lista do Placar a 1440×900 | ≥ 14 visíveis |
+| `ds:check`, `typecheck`, `lint`, `build` | verdes, limites todos em 0 (mono em rótulo entra no `monoNumber` como 0) |
+| axe no Chrome real (Início, Placar, Rodada, Notas, login) | 0 sério ou crítico |
+| Régua anti-IA | ≤ 3 |
+| Console | limpo em todas as telas |
+| Deploy | só com OK do Matheus no chat, backup antes e depois |
+
+## D2.7 Ordem de construção
+
+1. **Fundação:** tokens (D2.2), `Shell` com sidebar e barra inferior, `CONTAINER` novo, primitivos `Spark`,
+   `Columns`, `KpiCard`, `Gauge`, `Surface light`, `Metric` novo, `Label` sem mono. Telas continuam
+   funcionando dentro da casca nova (sem redesenho ainda). Build e navegador verdes.
+2. **Telas**, uma por commit: Placar, Rodada, Início, Notas, login, menu rápido.
+3. **Prova:** 1440 e 390 no Chrome real, axe, régua anti-IA, comparação antes e depois, backup, deploy com OK.

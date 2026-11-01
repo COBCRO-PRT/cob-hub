@@ -21,10 +21,27 @@ export function readRecent(): string[] {
   }
 }
 
+const recentListeners = new Set<() => void>();
+/** Assinatura dos recentes (sidebar): a string crua do localStorage é o snapshot estável. */
+export function subscribeRecent(l: () => void) {
+  recentListeners.add(l);
+  return () => {
+    recentListeners.delete(l);
+  };
+}
+export function readRecentRaw(): string {
+  try {
+    return window.localStorage.getItem(RECENT_KEY) ?? "[]";
+  } catch {
+    return "[]";
+  }
+}
+
 export function pushRecent(id: string) {
   try {
     const next = [id, ...readRecent().filter((x) => x !== id)].slice(0, RECENT_MAX);
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    recentListeners.forEach((l) => l());
   } catch {
     // navegação privada: segue sem lembrar
   }

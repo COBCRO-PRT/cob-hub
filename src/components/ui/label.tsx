@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Eyebrow e cabeçalho de coluna: mono, caixa alta, 11px. Substitui as 25 variações antigas. */
+/** Eyebrow e cabeçalho de coluna: caixa alta, 11px, sem mono (D2.2). Substitui as 25 variações antigas. */
 export function Label({
   tone = "dim",
   as: Tag = "span",

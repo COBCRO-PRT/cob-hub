@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Onest, Geist_Mono } from "next/font/google";
-import { Hud, HudSpacer } from "@/components/hud/Hud";
+import { Shell } from "@/components/shell/Shell";
 import { USER_COOKIE_NAME, readSession } from "@/lib/gate-pessoa";
 import { MotionProvider } from "@/components/MotionProvider";
 import { Toaster } from "@/components/ui/sonner";
@@ -39,9 +39,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <MotionProvider>
-          <Hud pessoa={pessoa ? { name: pessoa.name, role: pessoa.role } : null} />
-          {children}
-          <HudSpacer />
+          <Shell pessoa={pessoa ? { name: pessoa.name, role: pessoa.role } : null}>{children}</Shell>
         </MotionProvider>
         <Toaster />
       </body>

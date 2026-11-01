@@ -16,6 +16,7 @@ export function Metric({
   value,
   format = fmtNumber,
   unit,
+  fraction,
   label,
   sub,
   tone,
@@ -26,6 +27,8 @@ export function Metric({
   value: number | null;
   format?: (n: number) => string;
   unit?: string;
+  /** Decimal ou complemento apagado colado ao número (",00", "%"). */
+  fraction?: string;
   label: string;
   sub?: string;
   tone?: Tone;
@@ -54,6 +57,7 @@ export function Metric({
       <span className="type-caption text-mute">{label}</span>
       <span className={cn("flex items-baseline gap-1.5", size === "lg" ? "type-metric-lg" : "type-metric", value === null ? "text-dim" : tone ? TEXT[tone] : "text-fg")}>
         {value === null ? "s/n" : text}
+        {fraction && value !== null && <span className="-ml-1.5 text-[0.6em] font-medium text-dim">{fraction}</span>}
         {unit && value !== null && <span className="type-caption text-dim">{unit}</span>}
       </span>
       {(sub || delta) && (

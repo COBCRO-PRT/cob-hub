@@ -8,12 +8,12 @@
 @theme {
   /* cor (§4.1). A paleta padrão do Tailwind (zinc, emerald...) sai: só os tokens daqui existem. */
   --color-*: initial;
-  --color-bg: #07080a;
-  --color-surface-1: #0c0e11;
-  --color-surface-2: #11141a;
-  --color-surface-3: #161a21;
-  --color-line: rgba(255, 255, 255, 0.08);
-  --color-line-strong: rgba(255, 255, 255, 0.14);
+  --color-bg: #0a0b0d;
+  --color-surface-1: #111316;
+  --color-surface-2: #171a1f;
+  --color-surface-3: #1d2127;
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-line-strong: rgba(255, 255, 255, 0.12);
   --color-fg: #f2f4f7;
   --color-mute: #a3abb5;
   --color-dim: #7c8591;
@@ -58,6 +58,11 @@
   --radius-3xl: 24px;
   --radius-full: 999px;
 
+  /* luz (D2.2): gradiente de canto do card de topo e halo do gesto-herói */
+  --background-image-glow-card: radial-gradient(90% 80% at 100% 0%, rgba(255, 255, 255, 0.05), transparent 60%);
+  --background-image-glow-accent: radial-gradient(70% 60% at 50% 0%, rgba(0, 229, 255, 0.16), transparent 70%);
+  --background-image-glow-side: radial-gradient(120% 140% at 0% 0%, rgba(0, 229, 255, 0.1), transparent 55%);
+
   --shadow-relief: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --shadow-float: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
   --shadow-2xl: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
@@ -78,19 +83,19 @@
 
 /* tipo (§4.2): seis papéis de texto e três de métrica. Nenhum text-[Npx] fora daqui. */
 @utility type-display {
-  font-size: 2rem;
+  font-size: 1.875rem;
   line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   @media (width < 40rem) {
     font-size: 1.625rem;
   }
 }
 @utility type-title {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 @utility type-subtitle {
   font-size: 1rem;
@@ -107,31 +112,30 @@
   font-weight: 500;
 }
 @utility type-label {
-  font-family: var(--font-mono);
   font-size: 0.6875rem;
   line-height: 1;
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 @utility type-metric-lg {
-  font-size: 2.5rem;
+  font-size: 2.75rem;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 @utility type-metric {
-  font-size: 1.75rem;
+  font-size: 1.875rem;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 @utility type-metric-sm {
   font-size: 1rem;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 

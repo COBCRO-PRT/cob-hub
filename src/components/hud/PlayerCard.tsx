@@ -7,11 +7,11 @@ import { ChevronDown, Crown, Gauge, LogOut, Target } from "lucide-react";
 import { Button, Notice, PlayerLevel, Skeleton, dur, ease } from "@/components/ui";
 import { LEVELS } from "@/lib/placar/rodada-rules";
 import { cn } from "@/lib/utils";
-import type { HudPessoa } from "./Hud";
+import type { HudPessoa } from "@/components/shell/Shell";
 import { retryPlayer, type PlayerState } from "./usePlayer";
 
 /** Cartão do jogador na barra (§6.1): avatar, nome, nível. Clicar abre o menu do jogador. */
-export function PlayerCard({ pessoa, player }: { pessoa: NonNullable<HudPessoa>; player: PlayerState }) {
+export function PlayerCard({ pessoa, player, placement = "down", wide = false }: { pessoa: NonNullable<HudPessoa>; player: PlayerState; placement?: "down" | "up"; wide?: boolean }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -42,12 +42,15 @@ export function PlayerCard({ pessoa, player }: { pessoa: NonNullable<HudPessoa>;
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Jogador ${pessoa.name}`}
-        className="flex h-9 items-center gap-2 rounded-full border border-line bg-surface-1 py-1 pr-2.5 pl-1 shadow-relief outline-none motion-safe:transition-colors hover:border-line-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className={cn(
+          "flex items-center gap-2 border border-line bg-surface-1 shadow-relief outline-none motion-safe:transition-colors hover:border-line-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+          wide ? "w-full rounded-md px-2 py-2" : "h-9 rounded-full py-1 pr-2.5 pl-1",
+        )}
       >
         <span className={cn("flex size-7 items-center justify-center rounded-full text-sm font-extrabold", gold ? "bg-gold text-accent-fg" : "bg-accent text-accent-fg")}>
           {pessoa.name.charAt(0)}
         </span>
-        <span className="hidden min-w-[88px] flex-col items-stretch gap-1 sm:flex">
+        <span className={cn("min-w-[88px] flex-col items-stretch gap-1", wide ? "flex flex-1" : "hidden sm:flex")}>
           <span className="type-caption leading-none font-semibold text-fg">{pessoa.name}</span>
           {player.status === "loading" ? (
             <Skeleton className="w-full" />
@@ -69,10 +72,10 @@ export function PlayerCard({ pessoa, player }: { pessoa: NonNullable<HudPessoa>;
         {open && (
           <motion.div
             role="menu"
-            className="absolute top-11 right-0 z-50 w-[300px] rounded-panel border border-line bg-surface-1 p-2 shadow-float"
-            initial={reduce ? false : { opacity: 0, y: -6 }}
+            className={cn("absolute z-50 w-[300px] rounded-panel border border-line bg-surface-1 p-2 shadow-float", placement === "up" ? "bottom-full left-0 mb-2" : "top-11 right-0")}
+            initial={reduce ? false : { opacity: 0, y: placement === "up" ? 6 : -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
+            exit={{ opacity: 0, y: placement === "up" ? 6 : -6 }}
             transition={{ duration: dur.base, ease: ease.std }}
           >
             <div className="flex flex-col gap-3 px-3 pt-2 pb-3">

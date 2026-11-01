@@ -3,7 +3,7 @@
 import { Clock, Play, Target, Trophy } from "lucide-react";
 import { Button, Label, Notice, Score, Skeleton, Surface } from "@/components/ui";
 import { closesAt, countdown, useNow } from "@/components/placar/semana/comum";
-import type { HudPessoa } from "./Hud";
+import type { HudPessoa } from "@/components/shell/Shell";
 import { retryPlayer, usePlayer } from "./usePlayer";
 
 /** O gesto-herói do Início (§6.2): a rodada da semana, a meta do time num anel e as missões abertas. */
