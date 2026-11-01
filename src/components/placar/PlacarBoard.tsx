@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Menu } from "@base-ui/react/menu";
+import { MoreHorizontal } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   addWeeks,
   fmt1,
@@ -20,23 +23,50 @@ import {
   type Score,
   type Tone,
 } from "@/lib/placar/score";
-import { Trophy } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { Button, CONTAINER, Empty, Label, Metric, Modal, Notice, Pill, Score as Ring, SectionTitle, Skeleton, Surface, Trail, fmtScore as fmtRing, spring } from "@/components/ui";
+import { cn } from "@/lib/utils";
+import {
+  Button,
+  CONTAINER,
+  Columns,
+  Empty,
+  KpiCard,
+  Label,
+  Modal,
+  Notice,
+  Pill,
+  Score as Ring,
+  SectionTitle,
+  Skeleton,
+  Surface,
+  Trail,
+  fmtScore as fmtRing,
+  spring,
+  type ColumnSeries,
+} from "@/components/ui";
 import { PageHeader } from "./PageHeader";
-import { roundOf, SEASON } from "@/lib/placar/rodada-rules";
 import type { Audience, BoardClient, PlacarEntry, PlacarSnapshot } from "@/lib/placar/types";
 import { ClientDialog, EntryDialog } from "./PlacarDialogs";
 
 const OWNERS = ["Matheus", "Ramon", "Israel", "Sayuri"];
 const REFRESH_MS = 30_000;
 const TONES: Tone[] = ["good", "warn", "bad", "none"];
+const WEEKS = 8;
 
 interface Row {
   c: BoardClient;
   s: Score;
   /** Últimas 8 semanas, a mais antiga primeiro. */
   trail: { final: number | null; tone: Tone }[];
+}
+
+/** Uma semana do histórico da carteira: contagem e mensalidade por tom, nota média. */
+interface WeekStat {
+  key: string;
+  label: string;
+  cnt: Record<Tone, number>;
+  fee: Record<Tone, number>;
+  avg: number | null;
+  scored: number;
 }
 
 type LoadState = "loading" | "ok" | "error" | "auth";
@@ -46,9 +76,12 @@ type LoadState = "loading" | "ok" | "error" | "auth";
 const subscribeNoop = () => () => {};
 const useMounted = () => useSyncExternalStore(subscribeNoop, () => true, () => false);
 
+const zeroByTone = (): Record<Tone, number> => ({ good: 0, warn: 0, bad: 0, none: 0 });
+
 export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase: string }) {
   const finance = audience === "finance";
   const mounted = useMounted();
+  const reduce = useReducedMotion();
   const [pickedWeek, setPickedWeek] = useState<string | null>(null);
   const week = pickedWeek ?? (mounted ? lastClosedWeek() : null);
 
@@ -58,10 +91,12 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
   const [sheet, setSheet] = useState<Row | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [owner, setOwner] = useState("__all");
+  const [toneFilter, setToneFilter] = useState<Tone | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [entryClient, setEntryClient] = useState<BoardClient | null>(null);
   const [clientDlg, setClientDlg] = useState<{ client: BoardClient | null } | null>(null);
   const seq = useRef(0);
+  const listRef = useRef<HTMLElement>(null);
 
   const load = useCallback(async () => {
     if (!week) return;
@@ -112,7 +147,7 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
       if (list) list.push(e);
       else by.set(e.client, [e]);
     }
-    const sparkWeeks = weeksBack(week, 8);
+    const sparkWeeks = weeksBack(week, WEEKS);
     return data.clients.map((c) => {
       const list = by.get(c.id) ?? [];
       return {
@@ -128,6 +163,43 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 
   const active = useMemo(() => all.filter((r) => r.c.active !== false), [all]);
   const inactiveCount = all.length - active.length;
+
+  /** Histórico da carteira por semana, lido do `trail` de cada cliente (a última é a semana em tela). */
+  const stats: WeekStat[] = useMemo(() => {
+    if (!week) return [];
+    return weeksBack(week, WEEKS).map((w, i) => {
+      const cnt = zeroByTone();
+      const fee = zeroByTone();
+      const finals: number[] = [];
+      for (const r of active) {
+        const t = r.trail[i];
+        if (!t) continue;
+        cnt[t.tone]++;
+        fee[t.tone] += feeOf(r);
+        if (t.final !== null) finals.push(t.final);
+      }
+      return { key: w, label: weekLabel(w).slice(0, 5), cnt, fee, avg: finals.length ? mean(finals) : null, scored: finals.length };
+    });
+  }, [active, week]);
+  const now = stats[stats.length - 1];
+
+  const reds = useMemo(
+    () => active.filter((r) => r.s.tone === "bad").sort((a, b) => (a.s.final ?? 99) - (b.s.final ?? 99) || a.c.name.localeCompare(b.c.name, "pt-BR")),
+    [active],
+  );
+
+  const noReadByOwner = useMemo(() => {
+    const m = new Map<string, { name: string; n: number }>();
+    for (const r of active) {
+      if (r.s.tone !== "none") continue;
+      const o = r.c.owner.trim();
+      const key = o || "__none";
+      const cur = m.get(key) ?? { name: o || "Sem dono", n: 0 };
+      cur.n++;
+      m.set(key, cur);
+    }
+    return [...m.entries()].sort((a, b) => b[1].n - a[1].n || a[1].name.localeCompare(b[1].name, "pt-BR"));
+  }, [active]);
 
   const ownerGroups = useMemo(() => {
     const groups = new Map<string, { name: string; rows: Row[] }>([["__all", { name: "Todos", rows: active }]]);
@@ -152,22 +224,34 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
     let rows = showInactive ? all : active;
     if (selectedOwner === "__none") rows = rows.filter((r) => !r.c.owner.trim());
     else if (selectedOwner !== "__all") rows = rows.filter((r) => r.c.owner.trim() === selectedOwner);
+    if (toneFilter) rows = rows.filter((r) => r.s.tone === toneFilter);
     return [...rows].sort(
       (a, b) =>
         TONE_RANK[a.s.tone] - TONE_RANK[b.s.tone] ||
         (a.s.final ?? 99) - (b.s.final ?? 99) ||
         a.c.name.localeCompare(b.c.name, "pt-BR"),
     );
-  }, [all, active, showInactive, selectedOwner]);
+  }, [all, active, showInactive, selectedOwner, toneFilter]);
 
   const entryFor = (c: BoardClient | null) =>
     c && week && data ? data.entries.find((e) => e.id === `${c.id}_${week}`) : undefined;
 
   const go = (w: string) => setPickedWeek(w);
 
+  const scrollToList = () => listRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+  const seeTone = (t: Tone, ownerKey = "__all") => {
+    setOwner(ownerKey);
+    setToneFilter(t);
+    scrollToList();
+  };
+
+  const listTitle =
+    (toneFilter ? `Clientes ${TONE_LABEL_PLURAL[toneFilter]}` : "Clientes") +
+    (selectedOwner === "__all" ? "" : ` de ${ownerGroups.get(selectedOwner)?.name ?? ""}`);
+
   return (
     <div className="min-h-screen bg-bg">
-      <div className={`${CONTAINER} flex flex-col gap-7`}>
+      <div className={`${CONTAINER} flex flex-col gap-6`}>
 
         <PageHeader
           eyebrow={`COB · gestão por resultado${finance ? " · visão do financeiro" : ""}`}
@@ -183,19 +267,9 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
           }}
           actions={
             <>
-              <Button size="sm" onClick={() => setPickedWeek(null)}>
+              <Button size="sm" onClick={() => setPickedWeek(null)} disabled={!pickedWeek || pickedWeek === closed}>
                 Última semana fechada
               </Button>
-              {!finance && (
-                <Button size="sm" variant="soft" href="/placar/semana" icon={<Trophy aria-hidden strokeWidth={1.75} />}>
-                  Rodada da semana
-                  {currentMonday && roundOf(currentMonday) && (
-                    <span className="type-caption tabular-nums text-dim">
-                      {roundOf(currentMonday)}/{SEASON.rounds}
-                    </span>
-                  )}
-                </Button>
-              )}
               <Button size="sm" variant="primary" onClick={() => setClientDlg({ client: null })} disabled={state !== "ok"}>
                 Novo cliente
               </Button>
@@ -217,14 +291,94 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
         )}
 
         {!data ? (
-          state === "loading" && <PlacarSkeleton />
+          state === "loading" && <PlacarSkeleton finance={finance} />
         ) : (
           <>
-            <Summary rows={active} finance={finance} />
+            {active.length > 0 && now && (
+              <section aria-label="Resumo da carteira" className="grid grid-cols-12 gap-4">
+                <Kpis stats={stats} now={now} total={active.length} />
+                {finance && <FinanceKpis stats={stats} now={now} rows={active} />}
+
+                <Surface light className="col-span-12 flex flex-col gap-4 p-4 sm:p-5 lg:col-span-8">
+                  <SectionTitle title="Carteira por semana" hint="Clientes por cor nas últimas 8 semanas. Toque numa coluna para ler aquela semana." />
+                  <div className="flex flex-wrap gap-1.5" aria-label={`Semana ${week ? weekLabel(week) : ""}`}>
+                    {TONES.map((t) => (
+                      <Pill key={t} tone={t}>
+                        {TONE_LABEL[t]} <span className="tabular-nums">{now.cnt[t]}</span>
+                        {finance && <span className="font-normal opacity-80">{fmtBRL(now.fee[t])}</span>}
+                      </Pill>
+                    ))}
+                  </div>
+                  <HeroChart
+                    series={stats.map((s): ColumnSeries => ({ key: s.key, label: s.label, values: s.cnt }))}
+                    highlight={week ?? undefined}
+                    onPick={go}
+                    label={`Carteira por semana: ${stats.map((s) => `${s.label}, ${s.cnt.good} no verde, ${s.cnt.warn} no amarelo, ${s.cnt.bad} no vermelho, ${s.cnt.none} sem leitura`).join("; ")}`}
+                  />
+                </Surface>
+
+                <div className="col-span-12 flex flex-col gap-4 lg:col-span-4">
+                  <Surface light className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="type-subtitle text-fg">No vermelho</h2>
+                      <Pill tone={reds.length ? "bad" : "neutral"}>
+                        <span className="tabular-nums">{reds.length}</span>
+                      </Pill>
+                    </div>
+                    {reds.length ? (
+                      <>
+                        <ul className="flex flex-col gap-2.5">
+                          {reds.slice(0, 4).map((r) => (
+                            <li key={r.c.id} className="flex items-center gap-3">
+                              <Ring value={r.s.final} tone={r.s.tone} size={32} />
+                              <span className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate type-body font-semibold text-fg">{r.c.name}</span>
+                                <span className="truncate type-caption text-dim">{metaLine(r.c)}</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="mt-auto flex justify-end">
+                          <Button size="sm" onClick={() => seeTone("bad")}>
+                            {reds.length > 4 ? `Ver todos (${reds.length})` : "Ver todos"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <Empty title="Nenhum cliente no vermelho" className="flex-1 px-4 py-6" />
+                    )}
+                  </Surface>
+
+                  <Surface light className="flex flex-col gap-3 p-4 sm:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="type-subtitle text-fg">Sem leitura</h2>
+                      <Pill tone="neutral">
+                        <span className="tabular-nums">{now.cnt.none}</span>
+                      </Pill>
+                    </div>
+                    {noReadByOwner.length ? (
+                      <ul className="flex flex-col gap-1">
+                        {noReadByOwner.map(([key, o]) => (
+                          <li key={key} className="flex h-9 items-center gap-3">
+                            <span className="min-w-0 flex-1 truncate type-body text-fg">{o.name}</span>
+                            <span className="type-metric-sm text-fg">{o.n}</span>
+                            <Button size="sm" onClick={() => seeTone("none", key)} aria-label={`Ver os clientes sem leitura de ${o.name}`}>
+                              Ver
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="type-body text-mute">Todo cliente tem meta e número nesta semana.</p>
+                    )}
+                  </Surface>
+                </div>
+              </section>
+            )}
 
             <section aria-label="Donos" className="flex flex-col gap-3">
               <Label as="p">Donos</Label>
-              <div className="flex flex-wrap gap-2">
+              <div className="-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                 {[...ownerGroups.entries()].map(([key, g]) => (
                   <OwnerChip
                     key={key}
@@ -238,15 +392,24 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
               </div>
             </section>
 
-            <section aria-label="Clientes" className="flex flex-col gap-3">
+            <section ref={listRef} aria-label="Clientes" className="flex scroll-mt-6 flex-col gap-3">
               <SectionTitle
-                title={selectedOwner === "__all" ? "Clientes" : `Clientes de ${ownerGroups.get(selectedOwner)?.name ?? ""}`}
+                title={listTitle}
                 hint={`${list.length} ${list.length === 1 ? "cliente" : "clientes"}${inactiveCount > 0 ? ` · ${plural(inactiveCount, "inativo", "inativos")} fora da conta` : ""}`}
                 right={
-                  inactiveCount > 0 ? (
-                    <Button variant="link" size="sm" onClick={() => setShowInactive((v) => !v)}>
-                      {showInactive ? "Esconder inativos" : "Mostrar inativos"}
-                    </Button>
+                  toneFilter || inactiveCount > 0 ? (
+                    <>
+                      {toneFilter && (
+                        <Button size="sm" onClick={() => setToneFilter(null)}>
+                          Limpar filtro
+                        </Button>
+                      )}
+                      {inactiveCount > 0 && (
+                        <Button size="sm" onClick={() => setShowInactive((v) => !v)}>
+                          {showInactive ? "Esconder inativos" : "Mostrar inativos"}
+                        </Button>
+                      )}
+                    </>
                   ) : undefined
                 }
               />
@@ -257,7 +420,6 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
                 <Label>Dono</Label>
                 <Label>Meta</Label>
                 <Label>Resultado 4 sem.</Label>
-                <Label>Cliente</Label>
                 <Label>8 semanas</Label>
                 {finance && <Label className="text-right">Mensalidade</Label>}
                 <span />
@@ -270,9 +432,13 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
                   action={<Button variant="primary" onClick={() => setClientDlg({ client: null })}>Novo cliente</Button>}
                 />
               ) : !list.length ? (
-                <Empty title="Nenhum cliente com esse dono" action={<Button onClick={() => setOwner("__all")}>Ver todos</Button>} />
+                toneFilter ? (
+                  <Empty title={`Nenhum cliente ${TONE_LABEL_PLURAL[toneFilter]} aqui`} action={<Button onClick={() => setToneFilter(null)}>Limpar filtro</Button>} />
+                ) : (
+                  <Empty title="Nenhum cliente com esse dono" action={<Button onClick={() => setOwner("__all")}>Ver todos</Button>} />
+                )
               ) : (
-                <ul className="flex flex-col gap-1.5">
+                <ul className="flex flex-col gap-1">
                   <AnimatePresence initial={false}>
                     {list.map((r) => (
                       <motion.li key={r.c.id} layout="position" transition={spring} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -317,30 +483,63 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 // ---------- partes ----------
 
 const GRID_TEAM =
-  "xl:grid-cols-[44px_minmax(170px,1.6fr)_104px_minmax(120px,1fr)_minmax(130px,1.1fr)_48px_84px_150px]";
+  "xl:grid-cols-[80px_minmax(170px,1.5fr)_112px_minmax(130px,1fr)_minmax(150px,1fr)_84px_140px]";
 const GRID_FINANCE =
-  "xl:grid-cols-[44px_minmax(170px,1.6fr)_96px_minmax(110px,1fr)_minmax(120px,1fr)_48px_84px_96px_150px]";
+  "xl:grid-cols-[80px_minmax(160px,1.5fr)_104px_minmax(120px,1fr)_minmax(140px,1fr)_84px_104px_140px]";
 
 const feeOf = (r: Row) => (isNum(r.c.fee) ? r.c.fee : 0);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const TONE_LABEL: Record<Tone, string> = { good: "Verde", warn: "Amarelo", bad: "Vermelho", none: "Cinza" };
+const TONE_LABEL_PLURAL: Record<Tone, string> = { good: "no verde", warn: "no amarelo", bad: "no vermelho", none: "sem leitura" };
 
-function PlacarSkeleton() {
+const metaLine = (c: BoardClient) => (c.kind === "projeto" ? "marco no prazo" : metaText(c) ?? "sem meta combinada");
+
+function PlacarSkeleton({ finance }: { finance: boolean }) {
   return (
-    <div className="flex flex-col gap-7" aria-busy aria-label="Carregando o placar">
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <Surface key={i} className="flex flex-col gap-2 p-4">
-            <Skeleton className="w-24" />
-            <Skeleton shape="metric" />
-            <Skeleton className="w-32" />
+    <div className="flex flex-col gap-6" aria-busy aria-label="Carregando o placar">
+      <div className="grid grid-cols-12 gap-4">
+        {Array.from({ length: finance ? 8 : 4 }, (_, i) => (
+          <Surface key={i} light className="col-span-6 flex flex-col gap-4 p-5 md:col-span-6 lg:col-span-3">
+            <div className="flex flex-col gap-2">
+              <Skeleton className="w-24" />
+              <Skeleton shape="metric" />
+              <Skeleton className="w-32" />
+            </div>
+            <div className="flex justify-end">
+              <Skeleton shape="metric" className="h-7 w-12" />
+            </div>
           </Surface>
         ))}
+        <Surface light className="col-span-12 flex flex-col gap-4 p-5 lg:col-span-8">
+          <Skeleton className="w-40" />
+          <Skeleton shape="row" className="h-[248px]" />
+        </Surface>
+        <div className="col-span-12 flex flex-col gap-4 lg:col-span-4">
+          <Surface light className="flex flex-1 flex-col gap-3 p-5">
+            <Skeleton className="w-24" />
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton shape="ring" className="size-8" />
+                <Skeleton lines={2} className="w-40" />
+              </div>
+            ))}
+          </Surface>
+          <Surface light className="flex flex-col gap-3 p-5">
+            <Skeleton className="w-24" />
+            <Skeleton lines={3} />
+          </Surface>
+        </div>
       </div>
-      <Skeleton shape="text" lines={1} className="w-40" />
-      <div className="flex flex-col gap-1.5">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Surface key={i} className="flex items-center gap-3 px-4 py-3">
-            <Skeleton shape="ring" />
+      <Skeleton className="w-16" />
+      <div className="flex gap-2">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} shape="row" className="h-12 w-36" />
+        ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        {Array.from({ length: 8 }, (_, i) => (
+          <Surface key={i} className="flex h-14 items-center gap-3 px-4">
+            <Skeleton shape="ring" className="size-8" />
             <Skeleton lines={2} className="w-48" />
           </Surface>
         ))}
@@ -349,66 +548,115 @@ function PlacarSkeleton() {
   );
 }
 
-const SEG: Record<Tone, string> = { good: "bg-good", warn: "bg-warn", bad: "bg-bad", none: "bg-none" };
-const TONE_LABEL: Record<Tone, string> = { good: "Verde", warn: "Amarelo", bad: "Vermelho", none: "Cinza" };
+const CHART_MIN = 220;
 
-function Summary({ rows, finance }: { rows: Row[]; finance: boolean }) {
-  if (!rows.length) return null;
-  const cnt: Record<Tone, number> = { good: 0, warn: 0, bad: 0, none: 0 };
-  const fee: Record<Tone, number> = { good: 0, warn: 0, bad: 0, none: 0 };
-  for (const r of rows) {
-    cnt[r.s.tone]++;
-    fee[r.s.tone] += feeOf(r);
-  }
-  const scored = rows.filter((r) => r.s.final !== null);
-  const avg = scored.length ? mean(scored.map((r) => r.s.final as number)) : null;
-  const totalFee = rows.reduce((s, r) => s + feeOf(r), 0);
-  const brl = (n: number) => fmtBRL(n);
-
+/**
+ * O gráfico-herói preenche o card: no desktop a coluna da direita costuma ser mais alta,
+ * então a caixa cresce com a linha da grade e o gráfico mede a altura dela (mínimo 220).
+ */
+function HeroChart({ series, highlight, onPick, label }: { series: ColumnSeries[]; highlight?: string; onPick: (k: string) => void; label: string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(CHART_MIN);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setHeight(Math.max(CHART_MIN, Math.round(e.contentRect.height) - 28)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   return (
-    <section aria-label="Resumo da carteira" className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        {finance ? (
-          <>
-            <Surface className="p-4"><Metric size="lg" value={fee.bad} format={brl} label="Mensalidade em risco" sub={`${plural(cnt.bad, "cliente", "clientes")} no vermelho`} tone={cnt.bad ? "bad" : undefined} /></Surface>
-            <Surface className="p-4"><Metric size="lg" value={fee.none} format={brl} label="Sem leitura" sub={`${plural(cnt.none, "cliente", "clientes")} sem meta ou sem número`} /></Surface>
-            <Surface className="p-4"><Metric size="lg" value={avg} format={fmtScore} label="Nota média da carteira" sub={`${scored.length} de ${rows.length} com nota`} tone={avg === null ? undefined : toneOf(avg)} /></Surface>
-            <Surface className="p-4"><Metric size="lg" value={totalFee} format={brl} label="Mensalidade no placar" sub={plural(rows.length, "cliente ativo", "clientes ativos")} /></Surface>
-          </>
-        ) : (
-          <>
-            <Surface className="p-4"><Metric size="lg" value={cnt.bad} label="No vermelho" sub={cnt.bad === 1 ? "cliente longe da meta" : "clientes longe da meta"} tone={cnt.bad ? "bad" : undefined} /></Surface>
-            <Surface className="p-4"><Metric size="lg" value={cnt.none} label="Sem leitura" sub="sem meta ou sem número" /></Surface>
-            <Surface className="p-4"><Metric size="lg" value={avg} format={fmtScore} label="Nota média da carteira" sub={`${scored.length} de ${rows.length} com nota`} tone={avg === null ? undefined : toneOf(avg)} /></Surface>
-            <Surface className="p-4"><Metric size="lg" value={cnt.good} unit={`${Math.round((cnt.good / rows.length) * 100)}%`} label="No verde" sub="meta do time 70%" tone={cnt.good ? "good" : undefined} /></Surface>
-          </>
-        )}
-      </div>
+    <div ref={box} className="relative flex-1" style={{ minHeight: CHART_MIN + 28 }}>
+      <Columns series={series} highlight={highlight} height={height} onPick={onPick} label={label} className="absolute inset-0" />
+    </div>
+  );
+}
 
-      <div className="flex flex-col gap-2">
-        <div role="img" aria-label="Distribuição de cores" className="flex h-2 gap-px overflow-hidden rounded-full bg-line">
-          {TONES.map((t) =>
-            cnt[t] ? (
-              <motion.span
-                key={t}
-                className={`h-full ${SEG[t]}`}
-                initial={false}
-                animate={{ width: `${(cnt[t] / rows.length) * 100}%` }}
-                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              />
-            ) : null,
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {TONES.map((t) => (
-            <Pill key={t} tone={t}>
-              {TONE_LABEL[t]} <span className="tabular-nums">{cnt[t]}</span>
-              {finance && <span className="font-normal opacity-80">{fmtBRL(fee[t])}</span>}
-            </Pill>
-          ))}
-        </div>
-      </div>
-    </section>
+/** Os 4 KPIs da carteira (D2.5), cada um com o spark das 8 semanas e a semana em tela acesa. */
+function Kpis({ stats, now, total }: { stats: WeekStat[]; now: WeekStat; total: number }) {
+  const last = stats.length - 1;
+  const avgTone = now.avg === null ? "none" : toneOf(now.avg);
+  const pct = total ? Math.round((now.cnt.good / total) * 100) : 0;
+  const card = "col-span-6 md:col-span-6 lg:col-span-3";
+  return (
+    <>
+      <KpiCard
+        className={card}
+        label="No verde"
+        value={now.cnt.good}
+        unit={`${pct}%`}
+        sub={`${now.cnt.good} de ${total}, meta do time 70%`}
+        tone={now.cnt.good ? "good" : undefined}
+        spark={{ values: stats.map((s) => s.cnt.good), highlight: last, tone: "good", label: "Clientes no verde nas últimas 8 semanas" }}
+      />
+      <KpiCard
+        className={card}
+        label="No vermelho"
+        value={now.cnt.bad}
+        sub={now.cnt.bad === 1 ? "cliente longe da meta" : "clientes longe da meta"}
+        tone={now.cnt.bad ? "bad" : undefined}
+        spark={{ values: stats.map((s) => s.cnt.bad), highlight: last, tone: "bad", label: "Clientes no vermelho nas últimas 8 semanas" }}
+      />
+      <KpiCard
+        className={card}
+        label="Sem leitura"
+        value={now.cnt.none}
+        sub="sem meta ou sem número"
+        spark={{ values: stats.map((s) => s.cnt.none), highlight: last, tone: "none", label: "Clientes sem leitura nas últimas 8 semanas" }}
+      />
+      <KpiCard
+        className={card}
+        label="Nota média da carteira"
+        value={now.avg}
+        format={fmtScore}
+        sub={`${now.scored} de ${total} com nota`}
+        tone={now.avg === null ? undefined : avgTone}
+        spark={{ values: stats.map((s) => s.avg), highlight: last, tone: avgTone, label: "Nota média nas últimas 8 semanas" }}
+      />
+    </>
+  );
+}
+
+/** Vista do financeiro: a mesma carteira em reais. Só chega aqui com `fee` no payload. */
+function FinanceKpis({ stats, now, rows }: { stats: WeekStat[]; now: WeekStat; rows: Row[] }) {
+  const last = stats.length - 1;
+  const totalFee = rows.reduce((s, r) => s + feeOf(r), 0);
+  const card = "col-span-6 md:col-span-6 lg:col-span-3";
+  return (
+    <>
+      <KpiCard
+        className={card}
+        label="Mensalidade em risco"
+        value={now.fee.bad}
+        format={fmtBRL}
+        sub={`${plural(now.cnt.bad, "cliente", "clientes")} no vermelho`}
+        tone={now.cnt.bad ? "bad" : undefined}
+        spark={{ values: stats.map((s) => s.fee.bad), highlight: last, tone: "bad", label: "Mensalidade no vermelho nas últimas 8 semanas" }}
+      />
+      <KpiCard
+        className={card}
+        label="Mensalidade sem leitura"
+        value={now.fee.none}
+        format={fmtBRL}
+        sub={`${plural(now.cnt.none, "cliente", "clientes")} sem meta ou sem número`}
+        spark={{ values: stats.map((s) => s.fee.none), highlight: last, tone: "none", label: "Mensalidade sem leitura nas últimas 8 semanas" }}
+      />
+      <KpiCard
+        className={card}
+        label="Mensalidade no verde"
+        value={now.fee.good}
+        format={fmtBRL}
+        sub={`${plural(now.cnt.good, "cliente", "clientes")} na meta`}
+        tone={now.cnt.good ? "good" : undefined}
+        spark={{ values: stats.map((s) => s.fee.good), highlight: last, tone: "good", label: "Mensalidade no verde nas últimas 8 semanas" }}
+      />
+      <KpiCard
+        className={card}
+        label="Mensalidade no placar"
+        value={totalFee}
+        format={fmtBRL}
+        sub={plural(rows.length, "cliente ativo", "clientes ativos")}
+      />
+    </>
   );
 }
 
@@ -426,17 +674,17 @@ function OwnerChip({ name, rows, finance, pressed, onClick }: { name: string; ro
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-left ${pressed ? "border-line-strong" : ""}`}
+      className={cn("flex shrink-0 snap-start items-center gap-2.5 rounded-md px-3 py-2 text-left", pressed && "border-line-strong")}
     >
       <Ring value={a} tone={toneOf(a)} size={32} label={`${name}: ${a === null ? "sem nota" : `nota ${fmtRing(a)}`}`} />
       <span className="flex flex-col">
-        <span className="type-body font-semibold text-fg">{name}</span>
-        <span className="type-caption text-dim">
+        <span className={cn("type-body font-semibold", pressed ? "text-fg" : "text-mute")}>{name}</span>
+        <span className="type-caption whitespace-nowrap text-dim">
           {plural(rows.length, "cliente", "clientes")}
           {reds.length ? <span className="text-bad"> · {reds.length} no vermelho</span> : ""}
         </span>
         {finance && (
-          <span className="type-caption tabular-nums text-dim">
+          <span className="type-caption whitespace-nowrap tabular-nums text-dim">
             {fmtBRL(carry)}
             {redFee ? <span className="text-bad"> · {fmtBRL(redFee)} no vermelho</span> : null}
           </span>
@@ -446,26 +694,52 @@ function OwnerChip({ name, rows, finance, pressed, onClick }: { name: string; ro
   );
 }
 
-function CellLabel({ children }: { children: React.ReactNode }) {
-  return <Label as="span" className="block xl:hidden">{children}</Label>;
-}
-
 const dim = (t: string) => <span className="type-caption text-dim">{t}</span>;
+const num = (t: string) => <span className="type-metric-sm text-fg">{t}</span>;
 
+/** Resultado das últimas 4 semanas: número em `metric-sm`, o resto apagado. */
 function resultNode(c: BoardClient, s: Score) {
-  if (c.kind === "projeto") return s.res === null ? dim("sem marco lançado") : s.res === 10 ? "marco no prazo" : "marco atrasado";
+  if (c.kind === "projeto") return s.res === null ? dim("sem marco lançado") : s.res === 10 ? <>{num("No prazo")} {dim("marco")}</> : <>{num("Atrasado")} {dim("marco")}</>;
   if (s.reason === "sem meta") return dim("combinar a meta");
   if (!s.weeks) return dim("nenhum número lançado");
   if (c.meta_mode === "taxa" || c.meta_mode === "custo")
     return (
       <>
-        <span className="tabular-nums">{fmt2(s.avg ?? 0)}</span> {dim("média")}
+        {num(fmt2(s.avg ?? 0))} {dim(`média · ${s.weeks} sem.`)}
       </>
     );
   return (
     <>
-      <span className="tabular-nums">{fmt2(s.sum)}</span> {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)} · ${s.weeks} sem.`)}
+      {num(fmt2(s.sum))} {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)} de meta · ${s.weeks} sem.`)}
     </>
+  );
+}
+
+const MORE_TRIGGER =
+  "inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-line text-mute outline-none hover:border-line-strong hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent data-popup-open:bg-surface-2 data-popup-open:text-fg max-sm:size-11 [&_svg]:size-4";
+const MENU_ITEM =
+  "flex h-9 cursor-default items-center rounded-md px-2.5 type-body text-fg outline-none select-none data-highlighted:bg-surface-2";
+
+/** Menu "mais" da linha: as ações que não cabem em 56px. */
+function RowMenu({ name, hasEntry, onEntry, onEdit }: { name: string; hasEntry: boolean; onEntry: () => void; onEdit: () => void }) {
+  return (
+    <Menu.Root>
+      <Menu.Trigger className={MORE_TRIGGER} aria-label={`Mais ações para ${name}`}>
+        <MoreHorizontal aria-hidden strokeWidth={1.75} />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-50">
+          <Menu.Popup className="min-w-[180px] rounded-panel border border-line bg-surface-1 p-1.5 shadow-float outline-none">
+            <Menu.Item className={MENU_ITEM} onClick={onEntry}>
+              {hasEntry ? "Editar número" : "Lançar número"}
+            </Menu.Item>
+            <Menu.Item className={MENU_ITEM} onClick={onEdit}>
+              Editar cliente
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }
 
@@ -483,89 +757,78 @@ function ClientRow({
   onScore: () => void;
 }) {
   const owner = c.owner.trim();
-  const mt = metaText(c);
+  const mt = c.kind === "projeto" ? "marco no prazo" : metaText(c);
+  const metaTitle = [mt ?? "sem meta", c.meta_note].filter(Boolean).join(". ");
   const chips: { text: string; tone: "warn" | "neutral" }[] = [];
   if (c.active === false) chips.push({ text: "inativo", tone: "neutral" });
   if (c.meta_review) chips.push({ text: "meta a revisar", tone: "warn" });
   if (c.kind === "projeto") chips.push({ text: "projeto", tone: "neutral" });
   const needsEntry = c.kind === "projeto" ? s.res === null : !s.hasW;
+  const subline = [c.delivers, owner || "sem dono", finance ? (isNum(c.fee) ? fmtBRL(c.fee) : "sem valor") : ""].filter(Boolean).join(" · ");
 
   return (
     <Surface
       as="article"
-      className={`relative grid grid-cols-[44px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 overflow-hidden px-4 py-2.5 xl:items-center xl:gap-y-0 ${s.tone === "bad" ? "before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-r before:bg-bad before:content-['']" : ""} ${finance ? GRID_FINANCE : GRID_TEAM}`}
+      className={cn(
+        "relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 overflow-hidden px-4 py-3 xl:h-14 xl:gap-y-0 xl:py-0",
+        finance ? GRID_FINANCE : GRID_TEAM,
+        s.tone === "bad" && "before:absolute before:inset-y-4 before:left-0 before:w-0.5 before:rounded-r before:bg-bad before:content-['']",
+      )}
     >
       <button
         type="button"
         onClick={onScore}
         aria-label={`Como saiu a nota de ${c.name}`}
-        className="col-start-1 row-start-1 rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent xl:col-auto xl:row-auto"
+        className="col-start-1 row-start-1 flex items-center gap-2 rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent xl:col-auto xl:row-auto"
       >
-        <Ring value={s.final} tone={s.tone} size={40} />
+        <Ring value={s.final} tone={s.tone} size={32} bare />
+        <span className={cn("type-metric-sm", s.final === null ? "text-dim" : "text-fg")}>{s.final === null ? "s/n" : fmtScore(s.final)}</span>
       </button>
 
-      <div className={`row-start-1 flex min-w-0 flex-col gap-0.5 xl:col-auto xl:row-auto ${finance ? "col-start-2" : "col-span-2 col-start-2 xl:col-span-1"}`}>
-        <strong className="type-subtitle text-fg [overflow-wrap:anywhere]">{c.name}</strong>
-        {c.delivers && <span className="type-caption text-dim [overflow-wrap:anywhere]">{c.delivers}</span>}
-        {chips.length > 0 && (
-          <span className="mt-1 flex flex-wrap gap-1">
-            {chips.map((ch) => (
-              <Pill key={ch.text} tone={ch.tone} className="h-5 px-2">
-                {ch.text}
-              </Pill>
-            ))}
-          </span>
-        )}
+      <div className="col-start-2 row-start-1 flex min-w-0 flex-col xl:col-auto xl:row-auto">
+        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 xl:flex-nowrap">
+          <strong className="max-w-full truncate type-subtitle text-fg">{c.name}</strong>
+          {chips.map((ch) => (
+            <Pill key={ch.text} tone={ch.tone} className="h-5 shrink-0 px-1.5">
+              {ch.text}
+            </Pill>
+          ))}
+        </span>
+        {c.delivers && <span className="hidden truncate type-caption text-dim xl:block">{c.delivers}</span>}
+        <span className="truncate type-caption text-dim xl:hidden">{subline}</span>
       </div>
 
-      {/* No celular e no tablet os três ficam numa faixa; no xl viram colunas da tabela. */}
-      <div className="col-span-3 grid gap-2.5 sm:grid-cols-3 sm:gap-4 xl:contents">
-        <div className="min-w-0 type-body text-fg">
-          <CellLabel>Dono</CellLabel>
-          {owner || dim("sem dono")}
-          {owner && !c.owner_ok && <Pill className="ml-1.5 h-5 px-1.5 font-medium">palpite</Pill>}
-        </div>
-
-        <div className="min-w-0 type-body text-fg [overflow-wrap:anywhere]">
-          <CellLabel>Meta</CellLabel>
-          {c.kind === "projeto" ? dim("marco no prazo") : mt ? mt : dim("sem meta")}
-          {c.meta_note && <span className="line-clamp-2 type-caption text-dim" title={c.meta_note}>{c.meta_note}</span>}
-        </div>
-
-        <div className="min-w-0 type-body text-fg">
-          <CellLabel>Resultado 4 sem.</CellLabel>
-          {resultNode(c, s)}
-        </div>
+      <div className="hidden min-w-0 items-center gap-1.5 type-body text-fg xl:flex">
+        <span className="truncate">{owner || dim("sem dono")}</span>
+        {owner && !c.owner_ok && <Pill className="h-5 shrink-0 px-1.5 font-medium">palpite</Pill>}
       </div>
 
-      <div className="hidden type-body tabular-nums text-fg xl:block">{s.cs === null ? dim("s/n") : fmtScore(s.cs)}</div>
+      <div className="col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col xl:col-span-1 xl:col-auto xl:row-auto" title={metaTitle}>
+        <span className="truncate type-body text-fg">{mt ?? dim("sem meta")}</span>
+        <span className="truncate xl:hidden">{resultNode(c, s)}</span>
+      </div>
 
-      <div className="hidden xl:block">
+      <div className="hidden min-w-0 truncate xl:block">{resultNode(c, s)}</div>
+
+      <div className="col-start-3 row-start-1 hidden sm:block xl:col-auto xl:row-auto">
         <Trail tones={trail.map((x) => x.tone)} scores={trail.map((x) => x.final)} label={`Últimas 8 semanas de ${c.name}`} />
       </div>
 
       {finance && (
-        <div className="col-start-3 row-start-1 text-right type-body tabular-nums text-fg xl:col-auto xl:row-auto">
+        <div className="hidden text-right type-body tabular-nums text-fg xl:block">
           {isNum(c.fee) ? fmtBRL(c.fee) : dim("sem valor")}
         </div>
       )}
 
-      <div className="col-span-3 flex items-center gap-2 xl:col-span-1 xl:justify-end">
+      <div className="col-start-3 row-start-2 flex items-center justify-end gap-1.5 xl:col-auto xl:row-auto">
         {needsEntry ? (
-          <Button size="sm" variant="primary" onClick={onEntry}>
+          <Button size="sm" variant="soft" onClick={onEntry}>
             Lançar
           </Button>
         ) : (
-          <>
-            <Pill tone="good">Lançado</Pill>
-            <Button size="sm" onClick={onEntry}>
-              Editar número
-            </Button>
-          </>
+          <Pill tone="good">Lançado</Pill>
         )}
-        <Button size="sm" variant={needsEntry ? "ghost" : "link"} onClick={onEdit}>
-          {needsEntry ? "Editar" : "Cliente"}
-        </Button>
+        <RowMenu name={c.name} hasEntry={!needsEntry} onEntry={onEntry} onEdit={onEdit} />
       </div>
     </Surface>
   );
