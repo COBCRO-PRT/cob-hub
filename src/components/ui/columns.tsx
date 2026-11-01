@@ -36,7 +36,7 @@ export function Columns({
   const totals = series.map((s) => ORDER.reduce((n, t) => n + (s.values[t] ?? 0), 0));
   const max = Math.max(1, ...totals);
   return (
-    <div role="img" aria-label={label} className={cn("flex w-full items-end gap-2 sm:gap-3", className)} style={{ height: height + (compact ? 20 : 28) }}>
+    <div role={onPick ? "group" : "img"} aria-label={label} className={cn("flex w-full items-end gap-2 sm:gap-3", className)} style={{ height: height + (compact ? 20 : 28) }}>
       {series.map((s, i) => {
         const on = s.key === highlight;
         const Tag = onPick ? "button" : "div";
