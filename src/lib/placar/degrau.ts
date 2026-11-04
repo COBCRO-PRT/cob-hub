@@ -254,3 +254,61 @@ export function nextText(l: Pick<ClientLadder, "read" | "tier" | "next">): strin
   }
   return `subir para ${to}: retorno precisa subir de ${fmtRead("roas", l.read.value)} para ${fmtRead("roas", l.next.limit)}`;
 }
+
+// ---------- por plataforma ----------
+
+export type Platform = "meta" | "google";
+export const PLATFORM_LABEL: Record<Platform, string> = { meta: "Meta", google: "Google" };
+
+export interface PlatformRead {
+  platform: Platform;
+  spend: number;
+  result: number;
+  value: number | null;
+}
+
+/**
+ * Gasto e resultado de uma plataforma na mesma janela, a partir do `detail` dos
+ * lançamentos. Serve para a tela separar Meta de Google (o Google não tem coorte
+ * de mercado; a referência dele é a própria carteira COB).
+ */
+export function platformFor(c: BoardClient, W: string, list: PlacarEntry[], platform: Platform, weeks = 4): PlatformRead | null {
+  const kind = c.result_kind;
+  if (!kind) return null;
+  const win = new Set(weeksBack(W, weeks));
+  let spend = 0;
+  let result = 0;
+  let seen = false;
+  for (const e of list) {
+    if (!e.week || e.week > W) continue;
+    const d = e.detail?.[platform];
+    if (!d) continue;
+    const span = e.weeks > 1 ? Math.round(e.weeks) : 1;
+    const overlap = weeksBack(e.week, span).filter((w) => win.has(w));
+    if (!overlap.length) continue;
+    const f = overlap.length / span;
+    seen = true;
+    spend += (d.spend ?? 0) * f;
+    result += (d[kind] ?? 0) * f;
+  }
+  if (!seen || spend <= 0) return null;
+  const value = metricOf(kind) === "roas" ? result / spend : result > 0 ? spend / result : null;
+  return { platform, spend, result, value };
+}
+
+/** Curva da COB de uma plataforma para o grupo do cliente (quartis das leituras de 12 semanas). */
+export function platformCurve(
+  c: BoardClient,
+  clients: BoardClient[],
+  entriesByClient: Map<string, PlacarEntry[]>,
+  platform: Platform,
+  W: string,
+): Curve | null {
+  const values: number[] = [];
+  for (const o of clients) {
+    if (!o.active || o.kind !== "resultado" || o.result_kind !== c.result_kind) continue;
+    const r = platformFor(o, W, entriesByClient.get(o.id) ?? [], platform, COB_WEEKS);
+    if (r && r.value !== null) values.push(r.value);
+  }
+  return cobCurve(values);
+}
