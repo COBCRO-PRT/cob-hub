@@ -112,7 +112,7 @@ export function computeRodada(
   const toneAt = toneGetter(entries, frozen);
   const lists = byClient(entries);
   const ladder = buildLadder(clients, lists, benchmarks, week);
-  const empty: ClientLadder = { read: null, tier: "", next: null, steps: [], market: null, cob: null, group: 0 };
+  const empty: ClientLadder = { read: null, tier: "", next: null, steps: [], market: null, cob: null, cobScope: null, group: 0 };
 
   return clients
     .filter((c) => c.active)

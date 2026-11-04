@@ -185,6 +185,8 @@ export interface ClientLadder {
   steps: Step[];
   market: Benchmark | null;
   cob: Curve | null;
+  /** De onde veio a curva da COB: o grupo (setor + tipo) ou a COB geral do mesmo tipo de resultado. */
+  cobScope: "grupo" | "geral" | null;
   /** Clientes do grupo com leitura (para a tela dizer "4 clientes no grupo"). */
   group: number;
 }
@@ -202,23 +204,31 @@ export function buildLadder(
 ): Map<string, ClientLadder> {
   const out = new Map<string, ClientLadder>();
   const longReads = new Map<string, number[]>();
+  const kindReads = new Map<string, number[]>();
   const media = clients.filter((c) => c.active && c.kind === "resultado" && c.result_kind && c.sector);
   for (const c of media) {
     const r = costFor(c, W, entriesByClient.get(c.id) ?? [], COB_WEEKS);
     if (r && r.value !== null) {
       const k = groupKey(c);
       longReads.set(k, [...(longReads.get(k) ?? []), r.value]);
+      kindReads.set(c.result_kind, [...(kindReads.get(c.result_kind) ?? []), r.value]);
     }
   }
   for (const c of media) {
     const k = groupKey(c);
     const values = longReads.get(k) ?? [];
-    const cob = cobCurve(values);
+    // Grupo pequeno: a curva da COB geral do mesmo tipo de resultado faz as vezes, marcada como tal.
+    let cob = cobCurve(values);
+    let cobScope: ClientLadder["cobScope"] = cob ? "grupo" : null;
+    if (!cob) {
+      cob = cobCurve(kindReads.get(c.result_kind) ?? []);
+      if (cob) cobScope = "geral";
+    }
     const market = marketFor(benchmarks, c);
     const steps = ladderFor(metricOf(c.result_kind), market, cob);
     const read = costFor(c, W, entriesByClient.get(c.id) ?? [], 4);
     const t = tierFor(read, steps);
-    out.set(c.id, { read, tier: t.tier, next: t.next, steps, market, cob, group: values.length });
+    out.set(c.id, { read, tier: t.tier, next: t.next, steps, market, cob, cobScope, group: values.length });
   }
   return out;
 }

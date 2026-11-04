@@ -59,7 +59,8 @@ regra da skill google-ads-cob). Quando o teto é menor que o degrau, o teto mand
 
 - Mercado = linha `meta` do grupo quando existe; senão, a curva da COB no grupo faz as vezes (Prata = p25 da COB,
   Ouro = "a medir").
-- Grupo com menos de 3 clientes com leitura: Bronze = 1,5 x p50 do mercado; sem mercado, só "a medir".
+- Grupo com menos de 3 clientes com leitura: a curva da COB geral do mesmo tipo de resultado (todos os setores) faz as
+  vezes da curva do grupo, marcada "COB geral" na tela. Sem leitura nenhuma, "a medir".
 - Cliente novo entra em Bronze no dia 1, com a meta de volume = verba prevista ÷ mediana do grupo.
 - A escada recalcula a cada trimestre junto com os Rocks. No meio do trimestre a referência não muda.
 - A meta do trimestre de cada cliente é **subir um degrau**. Quem está em Ouro é cobrado em volume.
