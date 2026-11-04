@@ -14,7 +14,7 @@ nunca punem: não existe ponto negativo.
 - A rodada da semana W fecha na segunda seguinte às 10h, o prazo de lançamento. O fechamento roda sozinho
   (Vercel Cron, entre 10h e 11h) e o Matheus tem um botão "Fechar rodada agora" para o caso de falha.
 - No fechamento, a nota de cada cliente ativo é congelada na tabela `placar_rodada`. Lançamento atrasado
-  ou meta trocada depois não muda rodada fechada.
+  ou meta trocada depois não muda rodada fechada. Desde 04/11/2026 o degrau do benchmark também é congelado (`tier`).
 - Antes de fechar, a tela mostra a rodada como prévia, com os números do momento.
 
 ## Pontos por cliente (vão para o dono do cliente)
@@ -25,6 +25,7 @@ nunca punem: não existe ponto negativo.
 | Cliente no verde (nota 7 ou mais) | +2 |
 | Virada: estava vermelho na rodada anterior e agora está amarelo ou verde | +5 |
 | Sequência: completou 4, 8, 12... rodadas seguidas no verde. Ganha o selo "pronto para indicação" | +5 |
+| Degrau: subiu de degrau na escada do benchmark em relação à última rodada fechada com degrau (docs/placar-benchmark.md) | +3 |
 
 - Ranking dos donos pela média de pontos por cliente ativo da carteira (empate: total de pontos).
   Assim quem tem 20 clientes não ganha só pelo tamanho.
@@ -59,6 +60,8 @@ Tudo continua saindo do resultado do cliente. O jogo só dá forma ao que os pon
 | Tudo verde | uma rodada com a carteira inteira no verde |
 | Líder da rodada | 1º lugar numa rodada fechada |
 | Plano em 72h | fechar no ClickUp uma tarefa de recuperação em até 72h depois de criada |
+| Degrau acima | subir um cliente de degrau na escada do benchmark (04/11/2026) |
+| Ouro | fechar uma rodada com um cliente em Ouro (04/11/2026) |
 
 Conquista não dá ponto. Ela marca o caminho.
 
@@ -76,6 +79,8 @@ Para cada cliente, a tela diz o que fazer nesta semana e quanto vale:
 - A missão mostra o número que falta lançar na semana para chegar lá ("lançar 12 leads"). A conta é a
   própria régua do placar simulando o lançamento, nunca uma conta paralela.
 - Se a nota do cliente (avaliação dele) segura a nota, a missão avisa que o número sozinho não resolve.
+- Cliente de mídia com escada: a missão traz uma segunda linha com o degrau de agora e o que falta para o próximo
+  ("subir para Prata: custo precisa cair de R$ 18,40 para R$ 7,53"), valendo +3 (04/11/2026).
 - Missão cumprida aparece marcada quando a nota ao vivo chega no alvo.
 - Por dono, a tela mostra quantos clientes já têm o número da semana lançado.
 
