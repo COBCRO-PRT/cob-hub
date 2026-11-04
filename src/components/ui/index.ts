@@ -22,4 +22,4 @@ export { Skeleton } from "./skeleton";
 export { spring, ease, dur, panelIn, fade } from "./motion";
 
 /** Contêiner único de todas as telas (D2.3): dentro da casca, ao lado da sidebar. */
-export const CONTAINER = "mx-auto w-full max-w-[1440px] px-4 pt-6 pb-24 sm:px-6 lg:px-8";
+export const CONTAINER = "mx-auto w-full max-w-[1440px] min-[1700px]:max-w-[1560px] px-4 pt-6 pb-24 sm:px-6 lg:px-8";

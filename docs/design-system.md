@@ -552,3 +552,20 @@ e no `title`). Sem login: herói vira "Entre para jogar a rodada" e os KPIs some
    funcionando dentro da casca nova (sem redesenho ainda). Build e navegador verdes.
 2. **Telas**, uma por commit: Placar, Rodada, Início, Notas, login, menu rápido.
 3. **Prova:** 1440 e 390 no Chrome real, axe, régua anti-IA, comparação antes e depois, backup, deploy com OK.
+
+
+## Legibilidade em computador (04/11/2026)
+
+Revisão pedida pelo Matheus: "legível, principalmente em computadores". Diagnóstico medido no navegador: a maior parte
+do texto do sistema era legenda de 12px (322 trechos só no Placar) e rótulo de 11px, em cinza apagado, e nada crescia
+em tela larga. Decisões:
+
+- A base do `html` cresce com a largura: 16px até 1279px, **17px de 1280px** e **18px de 1680px**. Como tudo é rem
+  (tipo, espaço, cartão, grade), a tela inteira escala junto. Celular não muda.
+- `type-caption` subiu de 0.75rem para **0.8125rem** e `type-label` de 0.6875rem para **0.75rem**.
+- Cinzas mais claros: `--color-mute` #a3abb5 → **#b7bfc9**, `--color-dim` #7c8591 → **#919aa6**.
+- Largura fixa em px só onde é moldura (sidebar 248px). Modal, menus, ficha, cartões e as colunas da lista do Placar
+  passaram para rem; o contêiner vai a 1560px a partir de 1700px de tela.
+- Lista do Placar: linha com altura mínima (não fixa); meta e resultado quebram em 2 linhas em vez de cortar.
+- Ficha da nota usa o modal padrão (36rem) e a régua alterna rótulos de linha quando dois marcos ficam a menos de um
+  quarto da barra.

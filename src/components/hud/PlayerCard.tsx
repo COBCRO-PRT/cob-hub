@@ -72,7 +72,7 @@ export function PlayerCard({ pessoa, player, placement = "down", wide = false }:
         {open && (
           <motion.div
             role="menu"
-            className={cn("absolute z-50 w-[300px] rounded-panel border border-line bg-surface-1 p-2 shadow-float", placement === "up" ? "bottom-full left-0 mb-2" : "top-11 right-0")}
+            className={cn("absolute z-50 w-[19rem] rounded-panel border border-line bg-surface-1 p-2 shadow-float", placement === "up" ? "bottom-full left-0 mb-2" : "top-11 right-0")}
             initial={reduce ? false : { opacity: 0, y: placement === "up" ? 6 : -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: placement === "up" ? 6 : -6 }}

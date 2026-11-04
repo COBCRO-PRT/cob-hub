@@ -15,8 +15,8 @@
   --color-line: rgba(255, 255, 255, 0.06);
   --color-line-strong: rgba(255, 255, 255, 0.12);
   --color-fg: #f2f4f7;
-  --color-mute: #a3abb5;
-  --color-dim: #7c8591;
+  --color-mute: #b7bfc9;
+  --color-dim: #919aa6;
   --color-accent: #00e5ff;
   --color-accent-fg: #04141a;
   --color-accent-soft: rgba(0, 229, 255, 0.1);
@@ -106,13 +106,14 @@
   font-size: 0.875rem;
   line-height: 1.5;
 }
+/* legenda e rótulo subiram um degrau em 04/11/2026: eram a maior parte do texto do sistema (12px e 11px). */
 @utility type-caption {
-  font-size: 0.75rem;
-  line-height: 1.4;
+  font-size: 0.8125rem;
+  line-height: 1.45;
   font-weight: 500;
 }
 @utility type-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   line-height: 1;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -150,6 +151,17 @@
   html {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+  /* computador: a base cresce com a largura, e todo rem (texto, espaço, cartão) cresce junto (04/11/2026). */
+  @media (width >= 80rem) {
+    html {
+      font-size: 17px;
+    }
+  }
+  @media (width >= 105rem) {
+    html {
+      font-size: 18px;
+    }
   }
   body {
     background: var(--color-bg);

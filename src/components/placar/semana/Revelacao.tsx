@@ -84,7 +84,7 @@ export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () =>
       exit={{ opacity: 0 }}
     >
       {party && <Confetti seed={Date.parse(data.week) / 86400000} />}
-      <div className="flex w-full max-w-[560px] flex-col items-center gap-8 py-6 text-center">
+      <div className="flex w-full max-w-[36rem] flex-col items-center gap-8 py-6 text-center">
         <motion.div {...step(0)} className="flex flex-col items-center gap-3">
           <Label>
             {data.season.name}

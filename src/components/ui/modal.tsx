@@ -37,7 +37,7 @@ export function Modal({
             "fixed z-60 flex max-h-[calc(100dvh-24px)] w-full flex-col overflow-hidden border border-line bg-surface-1 shadow-float outline-none",
             "inset-x-0 bottom-0 rounded-t-panel pb-[env(safe-area-inset-bottom)]",
             "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[calc(100dvh-64px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-panel sm:pb-0",
-            size === "sm" ? "sm:max-w-[440px]" : "sm:max-w-[560px]",
+            size === "sm" ? "sm:max-w-[28rem]" : "sm:max-w-[36rem]",
             "motion-safe:duration-200 motion-safe:ease-(--ease-out-quint) motion-safe:data-open:animate-in motion-safe:data-open:fade-in-0 motion-safe:data-open:slide-in-from-bottom-4 motion-safe:data-closed:animate-out motion-safe:data-closed:fade-out-0 motion-safe:data-closed:slide-out-to-bottom-2",
             className,
           )}

@@ -80,7 +80,7 @@ export function Ladder({
   // Rótulos alternam entre duas linhas quando dois marcos ficam perto demais.
   const sorted = [...marks].sort((a, b) => a.at - b.at);
   const rows = sorted.reduce<number[]>((acc, m, i) => {
-    const near = i > 0 && pct(m.at) - pct(sorted[i - 1].at) < 16;
+    const near = i > 0 && pct(m.at) - pct(sorted[i - 1].at) < 24;
     acc.push(near && acc[i - 1] === 0 ? 1 : 0);
     return acc;
   }, []);

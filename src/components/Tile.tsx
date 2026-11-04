@@ -19,7 +19,7 @@ export function Tile({ item, hotkey }: { item: Shortcut; hotkey?: number }) {
       rel={external ? "noopener noreferrer" : undefined}
       title={hotkey ? `${item.name} (tecla ${hotkey})` : item.name}
       aria-keyshortcuts={hotkey ? String(hotkey) : undefined}
-      className="group flex min-h-[168px] flex-col justify-between gap-5 p-5 motion-safe:hover:-translate-y-0.5"
+      className="group flex min-h-[10.5rem] flex-col justify-between gap-5 p-5 motion-safe:hover:-translate-y-0.5"
     >
       <div className="flex items-start gap-3">
         <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-2 type-subtitle text-mute shadow-relief">

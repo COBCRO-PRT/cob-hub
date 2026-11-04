@@ -26,7 +26,7 @@ export function PageHeader({ eyebrow, title, week, actions }: { eyebrow: string;
           {week && (
             <>
               <Button size="sm" icon={<ChevronLeft aria-hidden strokeWidth={1.75} />} aria-label="Anterior" disabled={week.prevDisabled} onClick={week.onPrev} />
-              <div className="flex min-w-[148px] flex-col items-center px-1">
+              <div className="flex min-w-[9.5rem] flex-col items-center px-1">
                 <b className="type-subtitle tabular-nums text-fg">{week.label}</b>
                 <span className="type-caption text-dim">{week.hint}</span>
               </div>

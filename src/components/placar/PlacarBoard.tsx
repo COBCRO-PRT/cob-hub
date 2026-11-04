@@ -581,9 +581,9 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 // ---------- partes ----------
 
 const GRID_TEAM =
-  "xl:grid-cols-[80px_minmax(160px,1.5fr)_104px_minmax(120px,1fr)_minmax(140px,1fr)_minmax(124px,1fr)_84px_140px]";
+  "xl:grid-cols-[5rem_minmax(12rem,2fr)_7rem_minmax(9rem,1.2fr)_minmax(10rem,1.2fr)_minmax(8.5rem,1fr)_5rem_8rem]";
 const GRID_FINANCE =
-  "xl:grid-cols-[80px_minmax(150px,1.5fr)_96px_minmax(110px,1fr)_minmax(130px,1fr)_minmax(116px,1fr)_84px_96px_130px]";
+  "xl:grid-cols-[5rem_minmax(11rem,2fr)_6.5rem_minmax(8.5rem,1.2fr)_minmax(9.5rem,1.2fr)_minmax(8rem,1fr)_5rem_5.5rem_7.5rem]";
 
 const feeOf = (r: Row) => (isNum(r.c.fee) ? r.c.fee : 0);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -892,7 +892,7 @@ function RowMenu({ name, hasEntry, onEntry, onEdit }: { name: string; hasEntry: 
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-50">
-          <Menu.Popup className="min-w-[180px] rounded-panel border border-line bg-surface-1 p-1.5 shadow-float outline-none">
+          <Menu.Popup className="min-w-[11rem] rounded-panel border border-line bg-surface-1 p-1.5 shadow-float outline-none">
             <Menu.Item className={MENU_ITEM} onClick={onEntry}>
               {hasEntry ? "Editar número" : "Lançar número"}
             </Menu.Item>
@@ -934,7 +934,7 @@ function ClientRow({
     <Surface
       as="article"
       className={cn(
-        "relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 overflow-hidden px-4 py-3 xl:h-14 xl:gap-y-0 xl:py-0",
+        "relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 overflow-hidden px-4 py-3 xl:min-h-14 xl:gap-y-0 xl:py-2",
         finance ? GRID_FINANCE : GRID_TEAM,
         s.tone === "bad" && "before:absolute before:inset-y-4 before:left-0 before:w-0.5 before:rounded-r before:bg-bad before:content-['']",
       )}
@@ -968,7 +968,7 @@ function ClientRow({
       </div>
 
       <div className="col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col xl:col-span-1 xl:col-auto xl:row-auto" title={metaTitle}>
-        <span className="truncate type-body text-fg">{mt ?? dim("sem meta")}</span>
+        <span className="line-clamp-2 type-body leading-snug text-fg">{mt ?? dim("sem meta")}</span>
         <span className="truncate xl:hidden">{resultNode(c, s)}</span>
         {ladder && (
           <span className="mt-1 flex items-center gap-1.5 xl:hidden">
@@ -978,7 +978,7 @@ function ClientRow({
         )}
       </div>
 
-      <div className="hidden min-w-0 truncate xl:block">{resultNode(c, s)}</div>
+      <div className="hidden min-w-0 xl:line-clamp-2 xl:block">{resultNode(c, s)}</div>
 
       <TierCell c={c} ladder={ladder} className="hidden xl:flex" />
 
@@ -1010,7 +1010,7 @@ function ClientRow({
 function ScoreSheet({ row, onClose }: { row: Row | null; onClose: () => void }) {
   const s = row?.s;
   return (
-    <Modal open={row !== null} onClose={onClose} size="sm" title={row ? `Como saiu a nota de ${row.c.name}` : "Nota"}>
+    <Modal open={row !== null} onClose={onClose} title={row ? `Como saiu a nota de ${row.c.name}` : "Nota"}>
       {row && s && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
@@ -1127,7 +1127,7 @@ const B = ({ children }: { children: React.ReactNode }) => <b className="font-se
 
 function Rule() {
   return (
-    <section aria-label="Como a nota sai" className="flex max-w-[760px] flex-col gap-3">
+    <section aria-label="Como a nota sai" className="flex max-w-[48rem] flex-col gap-3">
       <SectionTitle title="Como a nota sai" />
       <P>
         <B>Resultado dividido pela meta, vezes 10, com teto 10.</B> Bater metade da meta dá 5. A conta olha as últimas 4 semanas, então
