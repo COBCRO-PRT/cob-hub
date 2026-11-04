@@ -97,6 +97,8 @@ function parseClientPatch(b: Record<string, unknown>, audience: Audience): Clien
   if ("result_kind" in b) p.result_kind = pick(b.result_kind, ["", "lead", "conversa", "venda"] as const, "Tipo de resultado");
   if ("ads_meta" in b) p.ads_meta = text(b.ads_meta, 40, "Conta Meta").replace(/\D/g, "");
   if ("ads_google" in b) p.ads_google = text(b.ads_google, 40, "Conta Google");
+  if ("budget" in b) p.budget = numOrNull(b.budget, "Verba mensal", (n) => n >= 0);
+  if ("meta_auto" in b) p.meta_auto = bool(b.meta_auto, "Meta automática");
   if (audience === "finance" && "fee" in b) p.fee = numOrNull(b.fee, "Mensalidade", (n) => n >= 0);
   return p;
 }
@@ -197,6 +199,8 @@ export function placarHandlers(audience: Audience) {
       result_kind: p.result_kind ?? "",
       ads_meta: p.ads_meta ?? "",
       ads_google: p.ads_google ?? "",
+      budget: p.budget ?? null,
+      meta_auto: p.meta_auto ?? false,
       updated_at: new Date().toISOString(),
     };
     const saved = await store.insertClient(client);

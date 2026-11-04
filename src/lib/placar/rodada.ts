@@ -41,6 +41,8 @@ export interface RodadaClient extends RodadaRow {
   tierNext: string | null;
   /** Degrau na última rodada fechada que tinha degrau. */
   tierPrev: Tier;
+  /** Rodadas seguidas (fechadas, contando esta) em Abaixo. */
+  abaixoStreak: number;
 }
 
 export interface OwnerLine {
@@ -101,6 +103,18 @@ export function prevTierOf(frozen: RodadaRow[], client: string, week: string): T
   return best?.tier ?? "";
 }
 
+/** Rodadas fechadas seguidas em Abaixo antes de `week` (para o gatilho de 4 rodadas). */
+function abaixoBefore(frozen: RodadaRow[], client: string, week: string): number {
+  let n = 0;
+  for (let i = 1; i < LOOKBACK; i++) {
+    const w = addWeeks(week, -i);
+    const r = frozen.find((x) => x.client === client && x.week === w);
+    if (!r || r.tier !== "abaixo") break;
+    n++;
+  }
+  return n;
+}
+
 export function computeRodada(
   clients: PlacarClient[],
   entries: PlacarEntry[],
@@ -155,6 +169,7 @@ export function computeRodada(
         tierRead: l.read ? fmtRead(l.read.metric, l.read.value) : null,
         tierNext: nextText(l),
         tierPrev,
+        abaixoStreak: l.tier === "abaixo" ? 1 + abaixoBefore(frozen, c.id, week) : 0,
         name: c.name,
         meta: metaText(c),
         greenStreak,
@@ -203,6 +218,36 @@ export function ownerBoard(rows: RodadaClient[], quarterRows: RodadaRow[]): Owne
 // ---------- ClickUp ----------
 
 const prefix = () => process.env.PLACAR_TASK_PREFIX ?? "";
+
+/** Tarefa do cliente que ficou 4 rodadas em Abaixo na escada do benchmark (docs/placar-benchmark.md). */
+function degrauMarkdown(r: RodadaClient, origin: string): string {
+  return [
+    `**Cliente:** ${r.name} · **Dono:** ${r.owner || "sem dono"}`,
+    `**Rodada:** ${weekLabel(r.week)} · **Degrau:** Abaixo há ${r.abaixoStreak} rodadas${r.tierRead ? ` (${r.tierRead})` : ""}`,
+    `**Placar:** ${origin}/placar/semana?week=${r.week}`,
+    "",
+    "## Missão: subir um degrau",
+    "",
+    ...(r.tierNext ? [`- **Para chegar em Bronze:** ${r.tierNext.replace(/^subir para \w+: /, "")}`] : []),
+    `- **Subir de degrau vale +${POINTS.degrau} pontos** para ${r.owner || "o time"} na rodada em que acontecer.`,
+    "- A nota do cliente pode estar verde e o custo ainda assim acima da carteira: aqui o problema é eficiência, não volume.",
+    "",
+    "## Plano de 72h",
+    "",
+    "### Até 4h: diagnóstico de custo",
+    "- [ ] O gasto e o resultado lidos estão certos (conta certa, evento certo)?",
+    "- [ ] Onde o custo está acima: Meta, Google ou os dois (ficha do cliente no placar mostra os dois)",
+    "- [ ] O que a carteira faz diferente nesse grupo: objetivo, criativo, página, público",
+    "",
+    "### Até 24h: ação",
+    "- [ ] Uma mudança no ar com o que foi feito e quando",
+    "- [ ] A verba está certa para o custo-alvo? Se a meta de volume não fecha, revisar a verba com o cliente",
+    "",
+    "### Em 72h: revisão",
+    "- [ ] Anotar aqui o custo depois da mudança",
+    "- [ ] Se não mexeu, levar para a reunião de segunda: mudar escopo, dono ou grupo de comparação",
+  ].join("\n");
+}
 
 function taskMarkdown(r: RodadaClient, origin: string, need: string | null): string {
   const nota = r.score === null ? "sem nota" : fmtScore(r.score);
@@ -271,6 +316,32 @@ export async function syncTasks(store: PlacarStore, force = false): Promise<Plac
  * Garante a tarefa de um cliente vermelho: cria se não há nenhuma aberta e,
  * na quarta rodada seguida no vermelho, escala a aberta uma vez.
  */
+/** Tarefa "Plano de degrau" para quem está 4 rodadas em Abaixo. Uma aberta por cliente, como a do vermelho. */
+export async function ensureDegrauTask(store: PlacarStore, r: RodadaClient, tasks: PlacarTask[], origin: string): Promise<"criada" | "ja-existe"> {
+  const now = new Date().toISOString();
+  if (tasks.some((t) => t.client === r.client && !t.closed)) return "ja-existe";
+  const t = await createTask({
+    name: `${prefix()}🟠 Plano de degrau: ${r.name}`,
+    markdown: degrauMarkdown(r, origin),
+    assignee: clickupUserFor(r.owner),
+    dueInHours: 72,
+  });
+  const saved = await store.putTask({
+    id: t.id,
+    client: r.client,
+    week: r.week,
+    url: t.url,
+    status: t.status,
+    closed: false,
+    closed_at: null,
+    escalated_at: null,
+    created_at: now,
+    synced_at: now,
+  });
+  tasks.push(saved);
+  return "criada";
+}
+
 export async function ensureRedTask(
   store: PlacarStore,
   r: RodadaClient,
@@ -358,6 +429,7 @@ export async function semanaSnapshot(store: PlacarStore, week: string): Promise<
         tierRead: l?.tierRead ?? null,
         tierNext: l?.tierNext ?? null,
         tierPrev: l?.tierPrev ?? "",
+        abaixoStreak: l?.abaixoStreak ?? 0,
       };
     });
   } else {
@@ -409,6 +481,8 @@ export interface CloseResult {
   already: boolean;
   saved: number;
   reds: number;
+  /** Clientes 4 rodadas em Abaixo na escada (tarefa de degrau). */
+  lows: number;
   tasks: Record<string, string>;
   taskError: string | null;
 }
@@ -446,14 +520,19 @@ export async function closeWeek(store: PlacarStore, week: string, origin: string
   }
 
   const reds = rows.filter((r) => r.tone === "bad");
-  const result: CloseResult = { week, already, saved, reds: reds.length, tasks: {}, taskError: null };
-  if (!reds.length || !clickupConfig()) return result;
+  // Abaixo por 4 rodadas fechadas seguidas abre tarefa de degrau (só quando não está vermelho, que já tem a dele).
+  const lows = rows.filter((r) => r.tone !== "bad" && r.abaixoStreak >= STREAK);
+  const result: CloseResult = { week, already, saved, reds: reds.length, lows: lows.length, tasks: {}, taskError: null };
+  if ((!reds.length && !lows.length) || !clickupConfig()) return result;
 
   try {
     const tasks = await syncTasks(store, true);
     const byId = new Map(clients.map((c) => [c.id, c]));
     for (const r of reds) {
       result.tasks[r.name] = await ensureRedTask(store, r, tasks, origin, needForTask(byId.get(r.client), entries));
+    }
+    for (const r of lows) {
+      result.tasks[r.name] = await ensureDegrauTask(store, r, tasks, origin);
     }
   } catch (e) {
     // A rodada já está congelada; tarefa que falhou sai de novo no botão ou no próximo fechamento.

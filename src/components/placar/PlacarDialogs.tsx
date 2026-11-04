@@ -274,6 +274,8 @@ function ClientForm({
   const [resultKind, setResultKind] = useState<ResultKind>(client?.result_kind ?? "");
   const [adsMeta, setAdsMeta] = useState(client?.ads_meta ?? "");
   const [adsGoogle, setAdsGoogle] = useState(client?.ads_google ?? "");
+  const [budget, setBudget] = useState(client && Number(client.budget) > 0 ? decText(client.budget) : "");
+  const [metaAuto, setMetaAuto] = useState(!!client?.meta_auto);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -290,6 +292,9 @@ function ClientForm({
     const googleDigits = adsGoogle.replace(/\D/g, "");
     if (googleDigits && googleDigits.length !== 10) return setErr("A conta Google tem 10 dígitos, no formato 123-456-7890.");
     const google = googleDigits ? `${googleDigits.slice(0, 3)}-${googleDigits.slice(3, 6)}-${googleDigits.slice(6)}` : "";
+    const bg = parseDecLoose(budget);
+    if (Number.isNaN(bg) || (bg !== null && bg < 0)) return setErr("A verba mensal precisa ser um número.");
+    if (metaAuto && !(bg !== null && bg > 0)) return setErr("Meta automática precisa da verba mensal prevista.");
     const body: Record<string, unknown> = {
       name: name.trim(),
       owner: owner.trim(),
@@ -307,6 +312,8 @@ function ClientForm({
       result_kind: kind === "projeto" ? "" : resultKind,
       ads_meta: kind === "projeto" ? "" : meta,
       ads_google: kind === "projeto" ? "" : google,
+      budget: kind === "projeto" ? null : bg,
+      meta_auto: kind === "projeto" ? false : metaAuto,
     };
     if (finance) {
       const f = parseDecLoose(fee);
@@ -401,6 +408,14 @@ function ClientForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="c-ads-meta" label="Conta Meta" hint="Só dígitos, sem act_" type="text" inputMode="numeric" autoComplete="off" placeholder="123456789012345" value={adsMeta} onChange={text(setAdsMeta)} />
             <Field id="c-ads-google" label="Conta Google" hint="xxx-xxx-xxxx" type="text" inputMode="numeric" autoComplete="off" placeholder="123-456-7890" value={adsGoogle} onChange={text(setAdsGoogle)} />
+          </div>
+        )}
+        {kind !== "projeto" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="c-budget" label="Verba mensal de mídia (R$)" hint="Prevista, Meta + Google" type="text" inputMode="decimal" autoComplete="off" placeholder="3.000" value={budget} onChange={text(setBudget)} />
+            <Check id="c-meta-auto" checked={metaAuto} onChange={setMetaAuto}>
+              Meta automática pela escada: todo dia 1 a meta vira verba ÷ custo-alvo do próximo degrau
+            </Check>
           </div>
         )}
         <Field id="c-meta-note" label="Observação da meta" type="text" autoComplete="off" value={metaNote} onChange={text(setMetaNote)} />

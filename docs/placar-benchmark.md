@@ -38,7 +38,7 @@ Tabela `placar_benchmarks`, uma linha por grupo e plataforma, com a curva p25 / 
 
 | Plataforma | De onde vem | Atualiza |
 |---|---|---|
-| `meta` | Coorte da própria Meta (anunciantes do mesmo setor e objetivo), lida pelo conector de Meta Ads do Claude. Só existe para as contas que a Meta já liberou. | Rotina mensal (dia 1) pelo Claude; a linha guarda a data da leitura |
+| `meta` | Coorte da própria Meta (anunciantes do mesmo setor e objetivo), lida pelo conector de Meta Ads do Claude. Só existe para as contas que a Meta já liberou (04/11: The Joy Matriz, Santana, Vila Prudente e Cave Antiga). | Rotina mensal "Curva da Meta para o placar" (claude.ai/code/routines, dia 1 às 8h BRT, conector Meta-ADS) que grava em `POST /api/placar/benchmarks` com o `BENCHMARK_TOKEN` (Vercel). A linha guarda a data da leitura. |
 | `google` | A Google não publica coorte por API. A referência é a própria carteira COB no Google (quartis do grupo) até existir fonte melhor | Calculada ao vivo |
 | `cob` | Quartis da carteira COB no grupo, últimas 12 semanas, só clientes com gasto e resultado | Calculada ao vivo, nunca gravada |
 
@@ -62,6 +62,10 @@ regra da skill google-ads-cob). Quando o teto é menor que o degrau, o teto mand
 - Grupo com menos de 3 clientes com leitura: a curva da COB geral do mesmo tipo de resultado (todos os setores) faz as
   vezes da curva do grupo, marcada "COB geral" na tela. Sem leitura nenhuma, "a medir".
 - Cliente novo entra em Bronze no dia 1, com a meta de volume = verba prevista ÷ mediana do grupo.
+- **Meta automática** (04/11): cliente com `meta_auto` e `budget` (verba mensal prevista, Meta + Google) tem a meta
+  de volume recalculada todo dia 1 (`/api/placar/cron/metas`, Vercel Cron 09h BRT): verba ÷ custo-alvo do próximo
+  degrau acima do atual (venda: verba × retorno-alvo). Quem está em Ouro mira o próprio Ouro. A nota de meta diz a
+  conta feita e a data; `meta_review` volta a falso. `?dry=1` só calcula.
 - A escada recalcula a cada trimestre junto com os Rocks. No meio do trimestre a referência não muda.
 - A meta do trimestre de cada cliente é **subir um degrau**. Quem está em Ouro é cobrado em volume.
 
@@ -72,6 +76,9 @@ regra da skill google-ads-cob). Quando o teto é menor que o degrau, o teto mand
 - Conquistas: **Degrau acima** (subir um cliente de degrau) e **Ouro** (fechar uma rodada com um cliente em Ouro).
 - Missão da semana: "subir para Prata: custo precisa cair de R$ 18 para R$ 6". A conta usa a mesma régua.
 - Meta do time no trimestre: carteira com leitura de degrau e nenhum cliente em Abaixo por 4 rodadas.
+- **Gatilho** (04/11): cliente em Abaixo por 4 rodadas fechadas seguidas, e que não está vermelho (o vermelho já tem a
+  sua), ganha no fechamento a tarefa "🟠 Plano de degrau: <cliente>" na mesma lista do ClickUp, dono = dono do
+  cliente, 72h, com o que falta para Bronze e um plano de custo. Uma aberta por cliente (`placar_tasks`).
 
 ## Leitura automática (o sistema se move sozinho)
 

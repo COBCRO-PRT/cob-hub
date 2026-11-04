@@ -68,6 +68,10 @@ export interface PlacarClient {
   /** Ids das contas de anúncio, para a leitura automática. */
   ads_meta: string;
   ads_google: string;
+  /** Verba mensal prevista de mídia, em reais. Com meta_auto, a meta de volume sai daqui. */
+  budget: number | null;
+  /** A meta é recalculada todo dia 1 pela escada (verba ÷ custo-alvo do próximo degrau). */
+  meta_auto: boolean;
   updated_at: string;
 }
 

@@ -925,6 +925,7 @@ function ClientRow({
   const chips: { text: string; tone: "warn" | "neutral" }[] = [];
   if (c.active === false) chips.push({ text: "inativo", tone: "neutral" });
   if (c.meta_review) chips.push({ text: "meta a revisar", tone: "warn" });
+  if (c.meta_auto) chips.push({ text: "meta automática", tone: "neutral" });
   if (c.kind === "projeto") chips.push({ text: "projeto", tone: "neutral" });
   const needsEntry = c.kind === "projeto" ? s.res === null : !s.hasW;
   const subline = [c.delivers, owner || "sem dono", finance ? (isNum(c.fee) ? fmtBRL(c.fee) : "sem valor") : ""].filter(Boolean).join(" · ");

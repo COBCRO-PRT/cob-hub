@@ -59,6 +59,8 @@ export interface PlacarStore {
   putTask(task: PlacarTask): Promise<PlacarTask>;
   /** Curvas de referência (placar_benchmarks). */
   listBenchmarks(): Promise<Benchmark[]>;
+  /** Grava a curva inteira (cria ou substitui pelo id). */
+  putBenchmark(row: Benchmark): Promise<Benchmark>;
 }
 
 // ---------- normalização ----------
@@ -92,6 +94,8 @@ export function normalizeClient(row: Record<string, unknown>): PlacarClient {
     result_kind: oneOf<ResultKind>(row.result_kind, ["", "lead", "conversa", "venda"], ""),
     ads_meta: str(row.ads_meta),
     ads_google: str(row.ads_google),
+    budget: numOrNull(row.budget),
+    meta_auto: row.meta_auto === true,
     updated_at: str(row.updated_at) || new Date().toISOString(),
   };
 }
@@ -319,6 +323,17 @@ function supabaseStore(url: string, key: string): PlacarStore {
     async listBenchmarks() {
       return rows(await call("/placar_benchmarks?select=*&order=id.asc")).map(normalizeBenchmark);
     },
+
+    async putBenchmark(row) {
+      const r = rows(
+        await call("/placar_benchmarks?on_conflict=id", {
+          method: "POST",
+          body: JSON.stringify(row),
+          prefer: "resolution=merge-duplicates,return=representation",
+        }),
+      );
+      return normalizeBenchmark(r[0] ?? row);
+    },
   };
 }
 
@@ -478,6 +493,13 @@ function fileStore(filePath: string): PlacarStore {
       return Object.values(d.benchmarks)
         .map((b) => normalizeBenchmark(b as unknown as Record<string, unknown>))
         .sort((a, b) => a.id.localeCompare(b.id));
+    },
+
+    putBenchmark(row) {
+      return mutate((d) => {
+        d.benchmarks[row.id] = row;
+        return row;
+      });
     },
   };
 }

@@ -103,6 +103,8 @@ A tarefa do vermelho diz quanto falta lançar para virar e o que vale: virada +5
 - No fechamento da rodada, cada cliente vermelho sem tarefa aberta ganha uma:
   "🔴 Plano de recuperação: <cliente>", responsável = dono do cliente (sem dono vai para o Matheus),
   prazo de 72h, checklist adaptado do SOP de Conta Vermelha (72h) da Sayuri.
+- Cliente 4 rodadas fechadas seguidas em Abaixo na escada do benchmark (e não vermelho): tarefa
+  "🟠 Plano de degrau: <cliente>", mesma lista, 72h, com o que falta para Bronze (04/11/2026, docs/placar-benchmark.md).
 - Cliente vermelho em 4 rodadas seguidas: a tarefa aberta é escalada uma vez (comentário, prioridade
   urgente e o Matheus como responsável) para a reunião decidir escopo, dono ou encerrar.
 - Botão "Criar tarefa" na tela da rodada para quem ficou vermelho no meio da semana.
