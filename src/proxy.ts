@@ -21,8 +21,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // O cron da Vercel não tem login; a rota confere o CRON_SECRET sozinha.
-  if (pathname === "/api/placar/cron") {
+  // Rotas de máquina, sem login: os crons da Vercel conferem o CRON_SECRET e a rotina
+  // mensal das curvas confere o BENCHMARK_TOKEN, cada uma por conta própria.
+  if (pathname === "/api/placar/cron" || pathname === "/api/placar/cron/metas" || pathname === "/api/placar/benchmarks") {
     return NextResponse.next();
   }
 
