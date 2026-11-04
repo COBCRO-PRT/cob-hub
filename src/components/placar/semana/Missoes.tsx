@@ -5,12 +5,14 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, CircleCheck, Flame } from "lucide-react";
 import { Bar, Button, Empty, Label, Modal, Pill, Score as Ring, SectionTitle, Surface, Trail, spring } from "@/components/ui";
 import { STREAK } from "@/lib/placar/rodada-rules";
+import { TIER_LABEL } from "@/lib/placar/degrau";
 import type { LaunchLine, Mission } from "@/lib/placar/jogo";
 import type { RodadaClient, RodadaTaskInfo } from "@/lib/placar/rodada";
 import type { RodadaTone } from "@/lib/placar/types";
 import { TONE_RANK, addWeeks, fmtScore, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
-import { EXTERNAL_LINK, KIND, TONE_LABEL, closesAt, countdown, plural, useNow } from "./comum";
+import { EXTERNAL_LINK, KIND, TONE_LABEL, badgeText, closesAt, countdown, plural, useNow } from "./comum";
+import { TierChip } from "./tier-chip";
 
 export const SEM_DONO = "sem-dono";
 
@@ -168,11 +170,25 @@ export function MissionCard({ m }: { m: Mission }) {
           </span>
         </span>
         <span className={cn("type-body", m.blocked ? "text-warn" : m.done ? "text-mute" : "text-fg")}>{m.todo}</span>
+        {m.degrau?.todo && <DegrauLine tier={m.degrau.tier} todo={m.degrau.todo} points={m.degrau.points} />}
         {big && !m.done && (
           <Bar value={m.score ?? 0} max={RED_LIMIT} tone="bad" size="sm" label={`nota ${m.score === null ? "sem nota" : fmtScore(m.score)} de ${RED_LIMIT} para sair do vermelho`} />
         )}
       </Surface>
     </motion.li>
+  );
+}
+
+/** Segunda linha da missão: o degrau de agora e o que falta para o próximo, com os +3 da escada. */
+function DegrauLine({ tier, todo, points }: { tier: RodadaClient["tier"]; todo: string; points: number }) {
+  return (
+    <span className="flex items-start justify-between gap-3 border-t border-line pt-2.5">
+      <span className="flex min-w-0 flex-col gap-1">
+        <TierChip tier={tier} className="self-start" />
+        <span className="type-caption text-mute">{todo}</span>
+      </span>
+      <span className="shrink-0 type-caption font-semibold tabular-nums text-fg">+{points}</span>
+    </span>
   );
 }
 
@@ -226,6 +242,7 @@ export function ClientMap({
                   >
                     <Ring value={r.score} tone={r.tone} size={32} bare label={`${r.name}: ${r.score === null ? "sem nota" : `nota ${fmtScore(r.score)}`}, ${TONE_LABEL[r.tone].toLowerCase()}`} />
                     <span className="line-clamp-2 w-full type-caption text-fg [overflow-wrap:anywhere]">{r.name}</span>
+                    <TierChip tier={r.tier} />
                     {r.greenStreak >= 2 && (
                       <span className="inline-flex items-center gap-0.5 type-caption tabular-nums text-good">
                         <Flame aria-hidden className="size-3" strokeWidth={1.75} />
@@ -301,6 +318,20 @@ export function ClientSheet({
             </dl>
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <span className="flex flex-wrap items-center gap-2">
+              <Label>Degrau no benchmark</Label>
+              <TierChip tier={row.tier} read={row.tierRead} />
+            </span>
+            {row.tierNext && <span className="type-caption text-mute">{row.tierNext}</span>}
+            {row.tierPrev && (
+              <span className="type-caption text-dim">
+                Na última rodada fechada: {TIER_LABEL[row.tierPrev]}
+                {row.tier && row.tierPrev !== row.tier ? `, agora ${TIER_LABEL[row.tier]}` : ""}
+              </span>
+            )}
+          </div>
+
           <div className="flex flex-col gap-2">
             <Label>Últimas {row.trail.length} rodadas</Label>
             <Trail tones={row.trail} size="md" label={`Últimas ${row.trail.length} rodadas: ${row.trail.map((t, i) => `${weeks[i]} ${TONE_LABEL[t].toLowerCase()}`).join(", ")}`} />
@@ -309,7 +340,7 @@ export function ClientSheet({
             )}
             {row.badges.length > 0 && (
               <span className="type-caption text-good">
-                Nesta rodada: {row.badges.map((b) => (b === "virada" ? "virada" : "selo de sequência")).join(" e ")}
+                Nesta rodada: {row.badges.map(badgeText).join(", ")}
               </span>
             )}
           </div>
@@ -322,6 +353,11 @@ export function ClientSheet({
                 <span className="type-caption tabular-nums text-dim">+{mission.points}</span>
               </span>
               <span className={cn("type-body", mission.blocked ? "text-warn" : "text-fg")}>{mission.todo}</span>
+              {mission.degrau?.todo && (
+                <span className="type-caption text-mute">
+                  {mission.degrau.todo} <b className="font-semibold tabular-nums text-fg">+{mission.degrau.points}</b>
+                </span>
+              )}
             </div>
           )}
         </div>

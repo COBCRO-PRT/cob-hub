@@ -12,6 +12,7 @@ import type { RodadaClient, RodadaTaskInfo, SemanaSnapshot } from "@/lib/placar/
 import { addWeeks, mondayOf, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 import { EXTERNAL_LINK, closesAt, plural, useNow } from "./semana/comum";
+import { TierChip } from "./semana/tier-chip";
 import { ClientMap, Missions, PersonFilter, matches } from "./semana/Missoes";
 import { Confetti, Reveal } from "./semana/Revelacao";
 import { Conquistas, PodiumCard, SeasonTable, SeasonTrack, TeamHero } from "./semana/Temporada";
@@ -260,7 +261,15 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
         ) : (
           <>
             <div className="grid grid-cols-12 gap-4">
-              <TeamHero green={data.team.green} total={data.team.total} rows={rows} week={data.week} closed={data.closed} className="col-span-12 lg:col-span-7" />
+              <TeamHero
+                green={data.team.green}
+                total={data.team.total}
+                rows={rows}
+                degraus={data.owners.reduce((n, o) => n + o.degraus, 0)}
+                week={data.week}
+                closed={data.closed}
+                className="col-span-12 lg:col-span-7"
+              />
               <PodiumCard owners={data.owners} levels={levels} onPick={pick} closed={data.closed} className="col-span-12 lg:col-span-5" />
 
               <Missions
@@ -432,8 +441,11 @@ function RedRow({
         <Ring value={row.score} tone={row.tone} size={32} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate type-subtitle text-fg">{row.name}</span>
+          <span className="flex min-w-0 items-center gap-2 type-caption text-dim">
+            <TierChip tier={row.tier} read={row.tierRead} className="shrink-0" />
+            <span className="truncate">{row.owner || "sem dono"}</span>
+          </span>
           <span className="type-caption text-dim">
-            {row.owner || "sem dono"} ·{" "}
             {decide ? (
               <b className="font-semibold text-bad">{row.redStreak} rodadas no vermelho: decidir na reunião</b>
             ) : row.redStreak > 1 ? (
@@ -474,6 +486,7 @@ function Rules() {
     [`+${POINTS.verde}`, "cliente no verde"],
     [`+${POINTS.virada}`, "virada: saiu do vermelho para amarelo ou verde"],
     [`+${POINTS.sequencia}`, `a cada ${STREAK} rodadas seguidas no verde (selo de indicação)`],
+    [`+${POINTS.degrau}`, "subiu de degrau na escada do benchmark (custo por resultado contra o mercado)"],
   ];
   return (
     <section aria-label="Como pontua">

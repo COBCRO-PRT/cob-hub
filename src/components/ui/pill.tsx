@@ -1,7 +1,7 @@
 import type { Tone } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 
-export type PillTone = Tone | "accent" | "neutral";
+export type PillTone = Tone | "accent" | "neutral" | "strong" | "gold";
 
 const TONE: Record<PillTone, string> = {
   good: "border-good/35 bg-good/12 text-good",
@@ -10,6 +10,8 @@ const TONE: Record<PillTone, string> = {
   none: "border-line bg-surface-2 text-mute",
   accent: "border-accent/35 bg-accent-soft text-accent-text",
   neutral: "border-line-strong text-mute",
+  strong: "border-line-strong bg-surface-2 text-fg",
+  gold: "border-gold/35 bg-gold/12 text-gold",
 };
 
 /** Chip de estado (§5). */

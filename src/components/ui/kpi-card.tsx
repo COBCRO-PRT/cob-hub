@@ -1,7 +1,7 @@
 import type { Tone } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 import { Metric } from "./metric";
-import { Spark } from "./spark";
+import { Spark, type SparkTone } from "./spark";
 import { Surface } from "./surface";
 
 /** KPI com luz de canto e o gráfico das últimas semanas embaixo (D2.4). */
@@ -23,7 +23,7 @@ export function KpiCard({
   fraction?: string;
   sub?: string;
   tone?: Tone;
-  spark?: { values: (number | null)[]; highlight?: number; tone?: Tone | "accent"; kind?: "bars" | "line"; label?: string };
+  spark?: { values: (number | null)[]; highlight?: number; tone?: SparkTone; kind?: "bars" | "line"; label?: string };
   className?: string;
 }) {
   return (

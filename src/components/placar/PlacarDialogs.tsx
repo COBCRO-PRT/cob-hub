@@ -3,8 +3,9 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button, Field, Modal, Notice } from "@/components/ui";
+import { KIND_LABEL, SECTOR_LABEL } from "@/lib/placar/degrau";
 import { isNum, metaText, parseDecLoose, weekLabel } from "@/lib/placar/score";
-import type { Audience, BoardClient, ClientKind, MetaMode, MetaPeriod, PlacarEntry } from "@/lib/placar/types";
+import type { Audience, BoardClient, ClientKind, MetaMode, MetaPeriod, PlacarEntry, ResultKind } from "@/lib/placar/types";
 
 /** Envia JSON e devolve a mensagem de erro do servidor, ou null quando deu certo. */
 export async function send(url: string, method: string, body?: unknown): Promise<string | null> {
@@ -269,6 +270,10 @@ function ClientForm({
   const [metaNote, setMetaNote] = useState(client?.meta_note ?? "");
   const [metaReview, setMetaReview] = useState(!!client?.meta_review);
   const [active, setActive] = useState(client ? client.active !== false : true);
+  const [sector, setSector] = useState(client?.sector ?? "");
+  const [resultKind, setResultKind] = useState<ResultKind>(client?.result_kind ?? "");
+  const [adsMeta, setAdsMeta] = useState(client?.ads_meta ?? "");
+  const [adsGoogle, setAdsGoogle] = useState(client?.ads_google ?? "");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -280,6 +285,11 @@ function ClientForm({
     if (!name.trim()) return setErr("Dê um nome ao cliente.");
     const mv = parseDecLoose(metaValue);
     if (Number.isNaN(mv) || (mv !== null && mv <= 0)) return setErr("A meta precisa ser um número maior que zero.");
+    const meta = adsMeta.replace(/^act_/, "").trim();
+    if (meta && !/^\d+$/.test(meta)) return setErr("A conta Meta é só o número, por exemplo 123456789012345.");
+    const googleDigits = adsGoogle.replace(/\D/g, "");
+    if (googleDigits && googleDigits.length !== 10) return setErr("A conta Google tem 10 dígitos, no formato 123-456-7890.");
+    const google = googleDigits ? `${googleDigits.slice(0, 3)}-${googleDigits.slice(3, 6)}-${googleDigits.slice(6)}` : "";
     const body: Record<string, unknown> = {
       name: name.trim(),
       owner: owner.trim(),
@@ -293,6 +303,10 @@ function ClientForm({
       meta_note: metaNote.trim(),
       meta_review: metaReview,
       active,
+      sector,
+      result_kind: kind === "projeto" ? "" : resultKind,
+      ads_meta: kind === "projeto" ? "" : meta,
+      ads_google: kind === "projeto" ? "" : google,
     };
     if (finance) {
       const f = parseDecLoose(fee);
@@ -362,6 +376,32 @@ function ClientForm({
               </Field>
             </div>
           </>
+        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field id="c-sector" label="Setor" as="select" hint="Com quem o cliente é comparado" value={sector} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSector(e.target.value)}>
+            <option value="">Sem setor</option>
+            {Object.entries(SECTOR_LABEL).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </Field>
+          {kind !== "projeto" && (
+            <Field id="c-result-kind" label="Tipo de resultado" as="select" hint="O que a mídia entrega" value={resultKind} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setResultKind(e.target.value as ResultKind)}>
+              <option value="">Sem mídia</option>
+              {(["lead", "conversa", "venda"] as const).map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k].charAt(0).toUpperCase() + KIND_LABEL[k].slice(1)}
+                </option>
+              ))}
+            </Field>
+          )}
+        </div>
+        {kind !== "projeto" && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="c-ads-meta" label="Conta Meta" hint="Só dígitos, sem act_" type="text" inputMode="numeric" autoComplete="off" placeholder="123456789012345" value={adsMeta} onChange={text(setAdsMeta)} />
+            <Field id="c-ads-google" label="Conta Google" hint="xxx-xxx-xxxx" type="text" inputMode="numeric" autoComplete="off" placeholder="123-456-7890" value={adsGoogle} onChange={text(setAdsGoogle)} />
+          </div>
         )}
         <Field id="c-meta-note" label="Observação da meta" type="text" autoComplete="off" value={metaNote} onChange={text(setMetaNote)} />
         <Check id="c-meta-review" checked={metaReview} onChange={setMetaReview}>

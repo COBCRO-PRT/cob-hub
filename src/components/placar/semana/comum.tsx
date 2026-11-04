@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Award, ChevronsUp, Crown, Eye, Medal, PenLine, Shield, ShieldCheck, Sparkles, Target, Timer, TrendingUp, type LucideIcon, Zap } from "lucide-react";
 import type { PillTone } from "@/components/ui";
-import type { AchievementId } from "@/lib/placar/rodada-rules";
+import { POINTS, type AchievementId } from "@/lib/placar/rodada-rules";
 import type { MissionKind } from "@/lib/placar/jogo";
 import type { RodadaTone } from "@/lib/placar/types";
 
@@ -17,6 +17,14 @@ export const EXTERNAL_LINK = { target: "_blank", rel: "noreferrer" } as object;
 
 /** Nome de cada faixa, para legenda e leitor de tela. */
 export const TONE_LABEL: Record<RodadaTone, string> = { good: "Verde", warn: "Amarelo", bad: "Vermelho", none: "Cinza" };
+
+/** Selos de uma rodada (`RodadaClient.badges`) com o que valem, para a ficha e a revelação falarem igual. */
+export const BADGE_LABEL: Record<string, string> = {
+  virada: `+${POINTS.virada} virada`,
+  sequencia: `+${POINTS.sequencia} selo de sequência`,
+  degrau: `+${POINTS.degrau} subiu de degrau`,
+};
+export const badgeText = (b: string) => BADGE_LABEL[b] ?? b;
 
 export const ACH_ICON: Record<AchievementId, LucideIcon> = {
   virada: TrendingUp,

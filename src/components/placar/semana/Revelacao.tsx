@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Award, TrendingUp } from "lucide-react";
+import { Award, ChevronsUp, TrendingUp } from "lucide-react";
 import { Button, Label, Metric } from "@/components/ui";
 import type { SeasonLine } from "@/lib/placar/jogo";
 import type { SemanaSnapshot } from "@/lib/placar/rodada";
+import { TIER_LABEL } from "@/lib/placar/degrau";
 import { weekLabel } from "@/lib/placar/score";
 import { Podium } from "./Temporada";
 
@@ -62,8 +63,9 @@ export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () =>
   const levels = new Map<string, SeasonLine>(data.table.map((l) => [l.owner, l]));
   const viradas = data.rows.filter((r) => r.badges.includes("virada"));
   const selos = data.rows.filter((r) => r.badges.includes("sequencia"));
+  const degraus = data.rows.filter((r) => r.badges.includes("degrau"));
   const green = data.rows.filter((r) => r.tone === "good").length;
-  const party = viradas.length + selos.length > 0 || (top[0]?.points ?? 0) > 0;
+  const party = viradas.length + selos.length + degraus.length > 0 || (top[0]?.points ?? 0) > 0;
   // Com "reduzir movimento" tudo pinta de uma vez: sem atraso, sem deslocamento.
   const step = (i: number) => ({
     initial: reduce ? false : ({ opacity: 0, y: 14 } as const),
@@ -99,7 +101,7 @@ export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () =>
           </div>
         )}
 
-        {(viradas.length > 0 || selos.length > 0) && (
+        {(viradas.length > 0 || selos.length > 0 || degraus.length > 0) && (
           <motion.div {...step(4)} className="flex w-full flex-col gap-2">
             {viradas.map((r) => (
               <span key={r.client} className="flex items-center justify-center gap-2 type-body text-fg">
@@ -111,6 +113,16 @@ export function Reveal({ data, onClose }: { data: SemanaSnapshot; onClose: () =>
               <span key={r.client} className="flex items-center justify-center gap-2 type-body text-fg">
                 <Award aria-hidden className="size-4 text-gold" strokeWidth={1.75} />
                 Pronto para indicação: <b className="font-semibold">{r.name}</b>
+              </span>
+            ))}
+            {degraus.map((r) => (
+              <span key={r.client} className="flex items-center justify-center gap-2 type-body text-fg">
+                <ChevronsUp aria-hidden className="size-4 text-good" strokeWidth={1.75} />
+                Subiu de degrau: <b className="font-semibold">{r.name}</b>{" "}
+                <span className="text-dim">
+                  ({r.tierPrev ? `${TIER_LABEL[r.tierPrev]} para ` : ""}
+                  {TIER_LABEL[r.tier]})
+                </span>
               </span>
             ))}
           </motion.div>

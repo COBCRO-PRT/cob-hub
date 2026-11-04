@@ -1,8 +1,10 @@
 import type { Tone } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 
-const FILL: Record<Tone | "accent", string> = { good: "fill-good", warn: "fill-warn", bad: "fill-bad", none: "fill-dim", accent: "fill-accent" };
-const STROKE: Record<Tone | "accent", string> = { good: "stroke-good", warn: "stroke-warn", bad: "stroke-bad", none: "stroke-dim", accent: "stroke-accent" };
+export type SparkTone = Tone | "accent" | "gold";
+
+const FILL: Record<SparkTone, string> = { good: "fill-good", warn: "fill-warn", bad: "fill-bad", none: "fill-dim", accent: "fill-accent", gold: "fill-gold" };
+const STROKE: Record<SparkTone, string> = { good: "stroke-good", warn: "stroke-warn", bad: "stroke-bad", none: "stroke-dim", accent: "stroke-accent", gold: "stroke-gold" };
 
 const BAR = 3;
 const GAP = 3;
@@ -21,7 +23,7 @@ export function Spark({
   className,
 }: {
   values: (number | null)[];
-  tone?: Tone | "accent";
+  tone?: SparkTone;
   kind?: "bars" | "line";
   highlight?: number;
   height?: number;

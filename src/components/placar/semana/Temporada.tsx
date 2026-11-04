@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Crown, Lock } from "lucide-react";
-import { Columns, Empty, Gauge, Label, Modal, Pill, PlayerLevel, SectionTitle, Surface, spring, type ColumnSeries } from "@/components/ui";
-import { ACHIEVEMENTS, SEASON, TEAM_GOAL } from "@/lib/placar/rodada-rules";
+import { Columns, Empty, Gauge, Label, Metric, Modal, Pill, PlayerLevel, SectionTitle, Surface, spring, type ColumnSeries } from "@/components/ui";
+import { ACHIEVEMENTS, POINTS, SEASON, TEAM_GOAL } from "@/lib/placar/rodada-rules";
 import type { SeasonLine } from "@/lib/placar/jogo";
 import type { OwnerLine, RodadaClient, SemanaSnapshot } from "@/lib/placar/rodada";
 import { addWeeks, fmt2, weekLabel } from "@/lib/placar/score";
@@ -101,6 +101,7 @@ export function TeamHero({
   green,
   total,
   rows,
+  degraus,
   week,
   closed,
   className,
@@ -108,6 +109,8 @@ export function TeamHero({
   green: number;
   total: number;
   rows: RodadaClient[];
+  /** Clientes que subiram de degrau nesta rodada (soma dos donos). */
+  degraus: number;
   week: string;
   closed: boolean;
   className?: string;
@@ -117,6 +120,9 @@ export function TeamHero({
   const need = Math.max(0, Math.ceil(TEAM_GOAL * total) - green);
   const viradas = rows.filter((r) => r.badges.includes("virada")).length;
   const prontos = rows.filter((r) => r.badges.includes("sequencia")).length;
+  // Escada do benchmark: só quem tem leitura de degrau entra na conta de Prata ou Ouro.
+  const ladder = rows.filter((r) => r.tier).length;
+  const top = rows.filter((r) => r.tier === "prata" || r.tier === "ouro").length;
 
   // Verdes por semana nas últimas 8 rodadas: a trilha de cada cliente vai da mais antiga até esta.
   const n = rows[0]?.trail.length ?? 0;
@@ -158,6 +164,21 @@ export function TeamHero({
             </span>
           )}
         </div>
+      </div>
+
+      <div role="group" className="grid grid-cols-2 gap-4 border-t border-line pt-4" aria-label="Escada do benchmark na rodada">
+        <Metric
+          label="Degraus subidos"
+          value={degraus}
+          sub={`nesta rodada, +${POINTS.degrau} cada`}
+          tone={degraus > 0 ? "good" : undefined}
+        />
+        <Metric
+          label="Em Prata ou Ouro"
+          value={top}
+          unit={`de ${ladder}`}
+          sub={ladder ? "com leitura de degrau" : "ninguém com leitura ainda"}
+        />
       </div>
 
       {series.length > 0 && (
@@ -214,6 +235,17 @@ export function PodiumCard({
 const MAX_H = 128;
 const MIN_H = 64;
 
+/** "2 viradas · 1 selo · 3 degraus": o que o dono fez na rodada além do XP. Vazio quando não fez nada disso. */
+function feats(o: OwnerLine): string {
+  return [
+    o.viradas > 0 && plural(o.viradas, "virada", "viradas"),
+    o.sequencias > 0 && plural(o.sequencias, "selo", "selos"),
+    o.degraus > 0 && plural(o.degraus, "degrau", "degraus"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** Pódio: 2º, 1º e 3º lado a lado, coluna com altura proporcional ao XP, 1º com fio dourado. Quem vem depois, em linha. */
 export function Podium({
   owners,
@@ -256,6 +288,7 @@ export function Podium({
                 {lead && <Crown aria-hidden className="size-4 text-gold" strokeWidth={1.75} />}
                 <span className={cn("max-w-full truncate type-subtitle text-fg", onPick && "group-hover:underline")}>{o.owner}</span>
                 <span className="type-caption text-dim">{levels?.get(o.owner)?.level.name ?? "Estreante"}</span>
+                {feats(o) && <span className="max-w-full truncate type-caption tabular-nums text-mute">{feats(o)}</span>}
               </span>
               <motion.span
                 className={cn(
@@ -287,6 +320,7 @@ export function Podium({
                 ) : (
                   <span className="font-medium text-fg">{o.owner}</span>
                 )}
+                {feats(o) && <span className="truncate type-caption tabular-nums text-dim">{feats(o)}</span>}
               </span>
               <span className="type-metric-sm text-fg">
                 {o.xp} <span className="type-caption font-medium text-dim">XP</span>

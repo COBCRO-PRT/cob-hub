@@ -82,7 +82,8 @@ export function costFor(c: BoardClient, W: string, list: PlacarEntry[], weeks = 
   }
   if (!covered.size || spend <= 0) return null;
   const metric = metricOf(kind);
-  const value = metric === "roas" ? result / spend : result > 0 ? spend / result : null;
+  // Gasto sem resultado: sem leitura (nulo), e não "0x" ou custo infinito. O degrau vira Abaixo.
+  const value = result <= 0 ? null : metric === "roas" ? result / spend : spend / result;
   return { kind, metric, spend, result, value, weeks: covered.size };
 }
 
@@ -228,7 +229,7 @@ export function buildLadder(
     const steps = ladderFor(metricOf(c.result_kind), market, cob);
     const read = costFor(c, W, entriesByClient.get(c.id) ?? [], 4);
     const t = tierFor(read, steps);
-    out.set(c.id, { read, tier: t.tier, next: t.next, steps, market, cob, cobScope, group: values.length });
+    out.set(c.id, { read, tier: t.tier, next: t.next, steps, market, cob, cobScope: t.tier ? cobScope : null, group: values.length });
   }
   return out;
 }
@@ -292,11 +293,11 @@ export function platformFor(c: BoardClient, W: string, list: PlacarEntry[], plat
     result += (d[kind] ?? 0) * f;
   }
   if (!seen || spend <= 0) return null;
-  const value = metricOf(kind) === "roas" ? result / spend : result > 0 ? spend / result : null;
+  const value = result <= 0 ? null : metricOf(kind) === "roas" ? result / spend : spend / result;
   return { platform, spend, result, value };
 }
 
-/** Curva da COB de uma plataforma para o grupo do cliente (quartis das leituras de 12 semanas). */
+/** Curva da COB de uma plataforma para o tipo de resultado do cliente, todos os setores (quartis de 12 semanas). */
 export function platformCurve(
   c: BoardClient,
   clients: BoardClient[],
