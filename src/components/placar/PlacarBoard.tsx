@@ -115,7 +115,7 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
         setState("error");
         return;
       }
-      setData({ clients: body.clients, entries: body.entries, store: body.store });
+      setData({ clients: body.clients, entries: body.entries, benchmarks: body.benchmarks ?? [], store: body.store });
       setState("ok");
     } catch {
       if (mine !== seq.current) return;

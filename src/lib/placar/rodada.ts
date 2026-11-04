@@ -18,9 +18,10 @@ import {
   type SeasonLine,
 } from "./jogo";
 import { POINTS, QUARTER_START, SEASON, STREAK, TEAM_GOAL, roundOf, xpOf } from "./rodada-rules";
+import { TIER_RANK, buildLadder, fmtRead, nextText, type ClientLadder } from "./degrau";
 import { addWeeks, fmtScore, metaText, mondayOf, scoreFor, weekLabel } from "./score";
 import type { PlacarStore } from "./store";
-import type { PlacarClient, PlacarEntry, PlacarTask, RodadaRow, RodadaTone } from "./types";
+import type { Benchmark, PlacarClient, PlacarEntry, PlacarTask, RodadaRow, RodadaTone, Tier } from "./types";
 
 /** Rodadas que o mapa da carteira mostra no histórico de cada cliente. */
 const TRAIL = 8;
@@ -34,6 +35,12 @@ export interface RodadaClient extends RodadaRow {
   redStreak: number;
   /** Faixa nas últimas 8 rodadas, a mais antiga primeiro e esta por último. */
   trail: RodadaTone[];
+  /** Custo por resultado ou retorno na janela ("R$ 18,40", "2,1x"); nulo sem leitura. */
+  tierRead: string | null;
+  /** O que falta para o próximo degrau; nulo em Ouro ou sem escada. */
+  tierNext: string | null;
+  /** Degrau na última rodada fechada que tinha degrau. */
+  tierPrev: Tier;
 }
 
 export interface OwnerLine {
@@ -46,6 +53,8 @@ export interface OwnerLine {
   xp: number;
   viradas: number;
   sequencias: number;
+  /** Clientes que subiram de degrau nesta rodada. */
+  degraus: number;
   quarter: number;
 }
 
@@ -82,15 +91,28 @@ export interface SemanaSnapshot {
 // ---------- cálculo (puro) ----------
 
 /** Nota e pontos de cada cliente ativo na rodada `week`, com a régua de hoje. */
+/** Degrau congelado do cliente na última rodada fechada antes de `week` que tinha degrau. */
+export function prevTierOf(frozen: RodadaRow[], client: string, week: string): Tier {
+  let best: RodadaRow | null = null;
+  for (const r of frozen) {
+    if (r.client !== client || r.week >= week || !r.tier) continue;
+    if (!best || r.week > best.week) best = r;
+  }
+  return best?.tier ?? "";
+}
+
 export function computeRodada(
   clients: PlacarClient[],
   entries: PlacarEntry[],
   frozen: RodadaRow[],
   week: string,
   closedAt: string,
+  benchmarks: Benchmark[] = [],
 ): RodadaClient[] {
   const toneAt = toneGetter(entries, frozen);
   const lists = byClient(entries);
+  const ladder = buildLadder(clients, lists, benchmarks, week);
+  const empty: ClientLadder = { read: null, tier: "", next: null, steps: [], market: null, cob: null, group: 0 };
 
   return clients
     .filter((c) => c.active)
@@ -100,6 +122,8 @@ export function computeRodada(
       const prev = toneAt(c, addWeeks(week, -1));
       const greenStreak = tone === "good" ? streak(toneAt, c, week, "good") : 0;
       const redStreak = tone === "bad" ? streak(toneAt, c, week, "bad") : 0;
+      const l = ladder.get(c.id) ?? empty;
+      const tierPrev = prevTierOf(frozen, c.id, week);
 
       let points = 0;
       const badges: string[] = [];
@@ -113,6 +137,10 @@ export function computeRodada(
         points += POINTS.sequencia;
         badges.push("sequencia");
       }
+      if (l.tier && tierPrev && TIER_RANK[l.tier] > TIER_RANK[tierPrev]) {
+        points += POINTS.degrau;
+        badges.push("degrau");
+      }
 
       return {
         week,
@@ -122,7 +150,11 @@ export function computeRodada(
         score: s.final,
         points,
         badges,
+        tier: l.tier,
         closed_at: closedAt,
+        tierRead: l.read ? fmtRead(l.read.metric, l.read.value) : null,
+        tierNext: nextText(l),
+        tierPrev,
         name: c.name,
         meta: metaText(c),
         greenStreak,
@@ -149,6 +181,7 @@ export function ownerBoard(rows: RodadaClient[], quarterRows: RodadaRow[]): Owne
       xp: 0,
       viradas: 0,
       sequencias: 0,
+      degraus: 0,
       quarter: quarter.get(r.owner) ?? 0,
     };
     l.clients++;
@@ -156,6 +189,7 @@ export function ownerBoard(rows: RodadaClient[], quarterRows: RodadaRow[]): Owne
     l.points += r.points;
     if (r.badges.includes("virada")) l.viradas++;
     if (r.badges.includes("sequencia")) l.sequencias++;
+    if (r.badges.includes("degrau")) l.degraus++;
     lines.set(r.owner, l);
   }
   return [...lines.values()]
@@ -284,18 +318,19 @@ export async function ensureRedTask(
 
 async function load(store: PlacarStore, week: string) {
   const from = addWeeks(week, -(LOOKBACK + 4));
-  const [clients, entries, frozen] = await Promise.all([
+  const [clients, entries, frozen, benchmarks] = await Promise.all([
     store.listClients(),
     store.listEntries(from),
     store.listRodada(from < QUARTER_START ? from : QUARTER_START),
+    store.listBenchmarks(),
   ]);
-  return { clients, entries, frozen };
+  return { clients, entries, frozen, benchmarks };
 }
 
 /** A rodada `week` como a tela mostra: congelada se já fechou, prévia se não. */
 export async function semanaSnapshot(store: PlacarStore, week: string): Promise<SemanaSnapshot> {
   let clickupError: string | null = null;
-  const [{ clients, entries, frozen }, tasks] = await Promise.all([
+  const [{ clients, entries, frozen, benchmarks }, tasks] = await Promise.all([
     load(store, week),
     syncTasks(store).catch((e: unknown) => {
       clickupError = e instanceof Error ? e.message : String(e);
@@ -304,7 +339,7 @@ export async function semanaSnapshot(store: PlacarStore, week: string): Promise<
   ]);
   const fixed = frozen.filter((r) => r.week === week);
   const closed = fixed.length > 0;
-  const live = computeRodada(clients, entries, frozen, week, new Date().toISOString());
+  const live = computeRodada(clients, entries, frozen, week, new Date().toISOString(), benchmarks);
 
   let rows: RodadaClient[];
   if (closed) {
@@ -320,6 +355,9 @@ export async function semanaSnapshot(store: PlacarStore, week: string): Promise<
         greenStreak: l?.greenStreak ?? 0,
         redStreak: l?.redStreak ?? 0,
         trail: l?.trail ?? [],
+        tierRead: l?.tierRead ?? null,
+        tierNext: l?.tierNext ?? null,
+        tierPrev: l?.tierPrev ?? "",
       };
     });
   } else {
@@ -328,7 +366,7 @@ export async function semanaSnapshot(store: PlacarStore, week: string): Promise<
 
   const quarterRows = frozen.filter((r) => r.week >= QUARTER_START && r.week <= week);
   const missionsWeek = mondayOf(new Date());
-  const { missions, launch } = weekMissions(clients, entries, frozen, missionsWeek);
+  const { missions, launch } = weekMissions(clients, entries, frozen, missionsWeek, benchmarks);
   const owners = [...new Set(clients.filter((c) => c.active).map((c) => c.owner.trim()))];
   return {
     week,
@@ -380,20 +418,20 @@ export interface CloseResult {
  * Rodar de novo não mexe nas notas congeladas; só cria a tarefa que tenha faltado.
  */
 export async function closeWeek(store: PlacarStore, week: string, origin: string): Promise<CloseResult> {
-  const { clients, entries, frozen } = await load(store, week);
+  const { clients, entries, frozen, benchmarks } = await load(store, week);
   const already = frozen.some((r) => r.week === week);
   const now = new Date().toISOString();
 
   let rows: RodadaClient[];
   let saved = 0;
   if (already) {
-    rows = computeRodada(clients, entries, frozen, week, now).filter((r) =>
+    rows = computeRodada(clients, entries, frozen, week, now, benchmarks).filter((r) =>
       frozen.some((f) => f.week === week && f.client === r.client && f.tone === "bad"),
     );
   } else {
-    rows = computeRodada(clients, entries, frozen, week, now);
+    rows = computeRodada(clients, entries, frozen, week, now, benchmarks);
     saved = await store.insertRodada(
-      rows.map(({ week: w, client, owner, tone, score, points, badges, closed_at }) => ({
+      rows.map(({ week: w, client, owner, tone, score, points, badges, tier, closed_at }) => ({
         week: w,
         client,
         owner,
@@ -401,6 +439,7 @@ export async function closeWeek(store: PlacarStore, week: string, origin: string
         score,
         points,
         badges,
+        tier,
         closed_at,
       })),
     );

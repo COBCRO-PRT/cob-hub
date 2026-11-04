@@ -1,20 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Award,
-  Crown,
-  Eye,
-  PenLine,
-  Shield,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  Timer,
-  TrendingUp,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { Award, ChevronsUp, Crown, Eye, Medal, PenLine, Shield, ShieldCheck, Sparkles, Target, Timer, TrendingUp, type LucideIcon, Zap } from "lucide-react";
 import type { PillTone } from "@/components/ui";
 import type { AchievementId } from "@/lib/placar/rodada-rules";
 import type { MissionKind } from "@/lib/placar/jogo";
@@ -40,6 +27,8 @@ export const ACH_ICON: Record<AchievementId, LucideIcon> = {
   "tudo-verde": Sparkles,
   lider: Crown,
   "plano-72h": Timer,
+  degrau: ChevronsUp,
+  ouro: Medal,
 };
 
 /** Cara de cada tipo de missão: rótulo, ícone e o tom do chip (§6.4). Sem ciano: o acento fica só no herói (D2.2). */

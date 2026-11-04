@@ -93,6 +93,10 @@ function parseClientPatch(b: Record<string, unknown>, audience: Audience): Clien
   if ("meta_note" in b) p.meta_note = text(b.meta_note, 300, "Observação da meta");
   if ("meta_review" in b) p.meta_review = bool(b.meta_review, "Meta a revisar");
   if ("active" in b) p.active = bool(b.active, "Ativo");
+  if ("sector" in b) p.sector = text(b.sector, 40, "Setor");
+  if ("result_kind" in b) p.result_kind = pick(b.result_kind, ["", "lead", "conversa", "venda"] as const, "Tipo de resultado");
+  if ("ads_meta" in b) p.ads_meta = text(b.ads_meta, 40, "Conta Meta").replace(/\D/g, "");
+  if ("ads_google" in b) p.ads_google = text(b.ads_google, 40, "Conta Google");
   if (audience === "finance" && "fee" in b) p.fee = numOrNull(b.fee, "Mensalidade", (n) => n >= 0);
   return p;
 }
@@ -121,6 +125,9 @@ function parseEntry(b: Record<string, unknown>): PlacarEntry {
     milestone,
     client_score,
     note,
+    spend: null,
+    detail: {},
+    source: "manual",
     updated_at: new Date().toISOString(),
   };
 }
@@ -147,10 +154,15 @@ export function placarHandlers(audience: Audience) {
     const from = new URL(request.url).searchParams.get("from") ?? addWeeks(lastClosedWeek(), -12);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new InputError("Parâmetro from inválido.");
     const store = await getStore();
-    const [clients, entries] = await Promise.all([store.listClients(), store.listEntries(from)]);
+    const [clients, entries, benchmarks] = await Promise.all([
+      store.listClients(),
+      store.listEntries(from),
+      store.listBenchmarks(),
+    ]);
     const body: PlacarSnapshot = {
       clients: clients.map((c) => forAudience(c, audience)),
       entries,
+      benchmarks,
       store: store.kind,
     };
     return json({ ok: true, ...body });
@@ -181,6 +193,10 @@ export function placarHandlers(audience: Audience) {
       meta_note: p.meta_note ?? "",
       meta_review: p.meta_review ?? false,
       active: p.active ?? true,
+      sector: p.sector ?? "",
+      result_kind: p.result_kind ?? "",
+      ads_meta: p.ads_meta ?? "",
+      ads_google: p.ads_google ?? "",
       updated_at: new Date().toISOString(),
     };
     const saved = await store.insertClient(client);
@@ -207,6 +223,12 @@ export function placarHandlers(audience: Audience) {
     const entry = parseEntry(b);
     const store = await getStore();
     if (!(await store.getClient(entry.client))) return fail(404, "Cliente não encontrado.");
+    // Lançamento à mão não apaga o gasto que a leitura automática já gravou na mesma semana.
+    const prev = (await store.listEntries(entry.week)).find((e) => e.id === entry.id);
+    if (prev) {
+      entry.spend = prev.spend;
+      entry.detail = prev.detail;
+    }
     const saved = await store.putEntry(entry);
     return json({ ok: true, entry: saved });
   });

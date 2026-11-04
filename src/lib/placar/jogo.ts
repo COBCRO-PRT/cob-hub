@@ -5,8 +5,9 @@
  * Puro, sem store nem ClickUp. Toda nota sai de `scoreFor`, a régua do placar.
  */
 import { POINTS, STREAK, levelFor, roundOf, xpOf, type AchievementId, type Level } from "./rodada-rules";
+import { buildLadder, nextText } from "./degrau";
 import { addWeeks, isNum, metaWeek, scoreFor } from "./score";
-import type { PlacarClient, PlacarEntry, PlacarTask, RodadaRow, RodadaTone } from "./types";
+import type { Benchmark, PlacarClient, PlacarEntry, PlacarTask, RodadaRow, RodadaTone, Tier } from "./types";
 
 /** Até onde olhar para trás para contar sequência. */
 export const LOOKBACK = 52;
@@ -71,6 +72,8 @@ interface WeekOwner {
   gray: number;
   viradas: number;
   selos: number;
+  degraus: number;
+  ouros: number;
 }
 
 /**
@@ -97,7 +100,18 @@ export function seasonTable(frozen: RodadaRow[], tasks: PlacarTask[], owners: st
   for (const r of season) {
     const byOwner = weeks.get(r.week) ?? new Map<string, WeekOwner>();
     weeks.set(r.week, byOwner);
-    const w = byOwner.get(r.owner) ?? { owner: r.owner, clients: 0, points: 0, green: 0, red: 0, gray: 0, viradas: 0, selos: 0 };
+    const w = byOwner.get(r.owner) ?? {
+      owner: r.owner,
+      clients: 0,
+      points: 0,
+      green: 0,
+      red: 0,
+      gray: 0,
+      viradas: 0,
+      selos: 0,
+      degraus: 0,
+      ouros: 0,
+    };
     byOwner.set(r.owner, w);
     w.clients++;
     w.points += r.points;
@@ -106,6 +120,8 @@ export function seasonTable(frozen: RodadaRow[], tasks: PlacarTask[], owners: st
     if (r.tone === "none") w.gray++;
     if (r.badges.includes("virada")) w.viradas++;
     if (r.badges.includes("sequencia")) w.selos++;
+    if (r.badges.includes("degrau")) w.degraus++;
+    if (r.tier === "ouro") w.ouros++;
   }
 
   for (const byOwner of weeks.values()) {
@@ -122,6 +138,8 @@ export function seasonTable(frozen: RodadaRow[], tasks: PlacarTask[], owners: st
       if (w.gray === 0) unlock(l, "carteira-lida");
       if (w.gray === 0 && w.red === 0) unlock(l, "zero-vermelho");
       if (w.green === w.clients) unlock(l, "tudo-verde");
+      if (w.degraus > 0) unlock(l, "degrau");
+      if (w.ouros > 0) unlock(l, "ouro");
     });
   }
 
@@ -162,6 +180,8 @@ export interface Mission {
   /** Faixa ao vivo da semana. */
   tone: RodadaTone;
   score: number | null;
+  /** Escada do benchmark: degrau de agora e o que falta para o próximo (docs/placar-benchmark.md). */
+  degrau: { tier: Tier; todo: string | null; points: number } | null;
 }
 
 export interface LaunchLine {
@@ -183,6 +203,9 @@ function simulate(c: PlacarClient, list: PlacarEntry[], week: string, value: num
     milestone: null,
     client_score: null,
     note: "",
+    spend: null,
+    detail: {},
+    source: "",
     updated_at: "",
     ...base,
     weeks,
@@ -256,9 +279,11 @@ export function weekMissions(
   entries: PlacarEntry[],
   frozen: RodadaRow[],
   week: string,
+  benchmarks: Benchmark[] = [],
 ): { missions: Mission[]; launch: LaunchLine[] } {
   const toneAt = toneGetter(entries, frozen);
   const lists = byClient(entries);
+  const ladder = buildLadder(clients, lists, benchmarks, week);
   const missions: Mission[] = [];
   const launch = new Map<string, LaunchLine>();
   const prevWeek = addWeeks(week, -1);
@@ -322,7 +347,9 @@ export function weekMissions(
             : "Lançar o número da semana no placar";
     } else ({ todo, blocked } = needToReach(c, list, week, target));
 
-    missions.push({ client: c.id, name: c.name, owner, kind, points, todo, blocked, done, tone, score: s.final });
+    const l = ladder.get(c.id);
+    const degrau = l ? { tier: l.tier, todo: nextText(l), points: POINTS.degrau } : null;
+    missions.push({ client: c.id, name: c.name, owner, kind, points, todo, blocked, done, tone, score: s.final, degrau });
   }
 
   const order: Record<MissionKind, number> = { virada: 0, selo: 1, segurar: 2, verde: 3, cinza: 4 };

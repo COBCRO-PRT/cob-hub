@@ -14,7 +14,7 @@ export function defaultRodadaWeek(): string {
 }
 /** Meta do time: parte da carteira ativa no verde em janeiro. */
 export const TEAM_GOAL = 0.7;
-export const POINTS = { leitura: 1, verde: 2, virada: 5, sequencia: 5 } as const;
+export const POINTS = { leitura: 1, verde: 2, virada: 5, sequencia: 5, degrau: 3 } as const;
 /** Sequência premiada a cada 4 rodadas seguidas no verde; vermelho por 4 rodadas escala a tarefa. */
 export const STREAK = 4;
 
@@ -64,6 +64,8 @@ export const ACHIEVEMENTS = [
   { id: "tudo-verde", name: "Tudo verde", how: "Uma rodada com a carteira inteira no verde" },
   { id: "lider", name: "Líder da rodada", how: "Terminar uma rodada em 1º lugar" },
   { id: "plano-72h", name: "Plano em 72h", how: "Fechar uma tarefa de recuperação em até 72h" },
+  { id: "degrau", name: "Degrau acima", how: "Subir um cliente de degrau na escada do benchmark" },
+  { id: "ouro", name: "Ouro", how: "Fechar uma rodada com um cliente em Ouro" },
 ] as const;
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]["id"];

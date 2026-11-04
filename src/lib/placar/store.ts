@@ -15,7 +15,21 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { ClientKind, MetaMode, MetaPeriod, PlacarClient, PlacarEntry, PlacarTask, RodadaRow, RodadaTone } from "./types";
+import type {
+  Benchmark,
+  ClientKind,
+  EntryDetail,
+  EntrySource,
+  MetaMode,
+  MetaPeriod,
+  PlacarClient,
+  PlacarEntry,
+  PlacarTask,
+  ResultKind,
+  RodadaRow,
+  RodadaTone,
+  Tier,
+} from "./types";
 
 export class PlacarConflictError extends Error {}
 
@@ -43,6 +57,8 @@ export interface PlacarStore {
   listTasks(): Promise<PlacarTask[]>;
   /** Grava a tarefa inteira (cria ou substitui pelo id). */
   putTask(task: PlacarTask): Promise<PlacarTask>;
+  /** Curvas de referência (placar_benchmarks). */
+  listBenchmarks(): Promise<Benchmark[]>;
 }
 
 // ---------- normalização ----------
@@ -72,6 +88,10 @@ export function normalizeClient(row: Record<string, unknown>): PlacarClient {
     meta_note: str(row.meta_note),
     meta_review: row.meta_review === true,
     active: row.active !== false,
+    sector: str(row.sector),
+    result_kind: oneOf<ResultKind>(row.result_kind, ["", "lead", "conversa", "venda"], ""),
+    ads_meta: str(row.ads_meta),
+    ads_google: str(row.ads_google),
     updated_at: str(row.updated_at) || new Date().toISOString(),
   };
 }
@@ -87,6 +107,9 @@ export function normalizeEntry(row: Record<string, unknown>): PlacarEntry {
     milestone: typeof row.milestone === "boolean" ? row.milestone : null,
     client_score: numOrNull(row.client_score),
     note: str(row.note),
+    spend: numOrNull(row.spend),
+    detail: row.detail && typeof row.detail === "object" && !Array.isArray(row.detail) ? (row.detail as EntryDetail) : {},
+    source: oneOf<EntrySource>(row.source, ["", "auto", "manual"], ""),
     updated_at: str(row.updated_at) || new Date().toISOString(),
   };
 }
@@ -100,7 +123,25 @@ export function normalizeRodada(row: Record<string, unknown>): RodadaRow {
     score: numOrNull(row.score),
     points: Number(row.points) || 0,
     badges: Array.isArray(row.badges) ? row.badges.map(str) : [],
+    tier: oneOf<Tier>(row.tier, ["", "ouro", "prata", "bronze", "abaixo"], ""),
     closed_at: str(row.closed_at) || new Date().toISOString(),
+  };
+}
+
+export function normalizeBenchmark(row: Record<string, unknown>): Benchmark {
+  return {
+    id: str(row.id),
+    sector: str(row.sector),
+    result_kind: oneOf<Exclude<ResultKind, "">>(row.result_kind, ["lead", "conversa", "venda"], "lead"),
+    platform: oneOf<"meta" | "google">(row.platform, ["meta", "google"], "meta"),
+    metric: oneOf<"custo" | "roas">(row.metric, ["custo", "roas"], "custo"),
+    p25: numOrNull(row.p25),
+    p50: numOrNull(row.p50),
+    p75: numOrNull(row.p75),
+    p90: numOrNull(row.p90),
+    source: str(row.source),
+    captured_at: str(row.captured_at).slice(0, 10) || null,
+    updated_at: str(row.updated_at) || new Date().toISOString(),
   };
 }
 
@@ -274,6 +315,10 @@ function supabaseStore(url: string, key: string): PlacarStore {
       );
       return normalizeTask(r[0] ?? task);
     },
+
+    async listBenchmarks() {
+      return rows(await call("/placar_benchmarks?select=*&order=id.asc")).map(normalizeBenchmark);
+    },
   };
 }
 
@@ -285,6 +330,7 @@ interface FileData {
   /** Chave `<week>_<client>`. */
   rodada: Record<string, RodadaRow>;
   tasks: Record<string, PlacarTask>;
+  benchmarks: Record<string, Benchmark>;
 }
 
 // Fila de escrita por arquivo, compartilhada entre chamadas do mesmo processo.
@@ -294,9 +340,17 @@ function fileStore(filePath: string): PlacarStore {
   async function read(): Promise<FileData> {
     try {
       const raw = JSON.parse(await readFile(filePath, "utf8")) as Partial<FileData>;
-      return { clients: raw.clients ?? {}, entries: raw.entries ?? {}, rodada: raw.rodada ?? {}, tasks: raw.tasks ?? {} };
+      return {
+        clients: raw.clients ?? {},
+        entries: raw.entries ?? {},
+        rodada: raw.rodada ?? {},
+        tasks: raw.tasks ?? {},
+        benchmarks: raw.benchmarks ?? {},
+      };
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === "ENOENT") return { clients: {}, entries: {}, rodada: {}, tasks: {} };
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+        return { clients: {}, entries: {}, rodada: {}, tasks: {}, benchmarks: {} };
+      }
       throw e;
     }
   }
@@ -417,6 +471,13 @@ function fileStore(filePath: string): PlacarStore {
         d.tasks[task.id] = task;
         return task;
       });
+    },
+
+    async listBenchmarks() {
+      const d = await read();
+      return Object.values(d.benchmarks)
+        .map((b) => normalizeBenchmark(b as unknown as Record<string, unknown>))
+        .sort((a, b) => a.id.localeCompare(b.id));
     },
   };
 }
