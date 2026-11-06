@@ -962,8 +962,8 @@ function ClientRow({
         <span className="truncate type-caption text-dim xl:hidden">{subline}</span>
       </div>
 
-      <div className="hidden min-w-0 items-center gap-1.5 type-body text-fg xl:flex">
-        <span className="truncate">{owner || dim("sem dono")}</span>
+      <div className="hidden min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 type-body text-fg xl:flex">
+        <span className="whitespace-nowrap">{owner || dim("sem dono")}</span>
         {owner && !c.owner_ok && <Pill className="h-5 shrink-0 px-1.5 font-medium">palpite</Pill>}
       </div>
 
