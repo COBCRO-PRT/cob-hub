@@ -12,7 +12,6 @@ import type { RodadaClient, RodadaTaskInfo, SemanaSnapshot } from "@/lib/placar/
 import { addWeeks, mondayOf, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 import { EXTERNAL_LINK, closesAt, plural, useNow } from "./semana/comum";
-import { TierChip } from "./semana/tier-chip";
 import { ClientMap, Missions, PersonFilter, matches } from "./semana/Missoes";
 import { Confetti, Reveal } from "./semana/Revelacao";
 import { Conquistas, PodiumCard, SeasonTable, SeasonTrack, TeamHero } from "./semana/Temporada";
@@ -274,10 +273,9 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
 
               <Missions
                 missions={data.missions}
-                launch={data.launch}
                 week={data.missionsWeek}
                 picked={person}
-                filter={<PersonFilter owners={owners} picked={person} onPick={setPicked} />}
+                filter={<PersonFilter owners={owners} picked={person} onPick={setPicked} launch={data.launch} />}
                 className="col-span-12 lg:col-span-8"
               />
               <RedList
@@ -383,7 +381,6 @@ function RedList({
                 key={r.client}
                 row={r}
                 task={taskFor(data.tasks, r.client)}
-                mission={data.missions.find((m) => m.client === r.client && !m.done) ?? null}
                 canCreate={data.clickup}
                 now={now}
                 busy={busy === r.client}
@@ -417,7 +414,6 @@ function Deadline({ task, now }: { task: RodadaTaskInfo; now: number | null }) {
 function RedRow({
   row,
   task,
-  mission,
   canCreate,
   now,
   busy,
@@ -426,7 +422,6 @@ function RedRow({
 }: {
   row: RodadaClient;
   task: RodadaTaskInfo | undefined;
-  mission: Mission | null;
   canCreate: boolean;
   now: number | null;
   busy: boolean;
@@ -441,13 +436,11 @@ function RedRow({
         <Ring value={row.score} tone={row.tone} size={32} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate type-subtitle text-fg">{row.name}</span>
-          <span className="flex min-w-0 items-center gap-2 type-caption text-dim">
-            <TierChip tier={row.tier} read={row.tierRead} className="shrink-0" />
-            <span className="truncate">{row.owner || "sem dono"}</span>
-          </span>
+          {/* A missão e o degrau já estão no cartão de missão ao lado: aqui fica só o que é do plano de recuperação. */}
           <span className="type-caption text-dim">
+            {row.owner || "sem dono"} ·{" "}
             {decide ? (
-              <b className="font-semibold text-bad">{row.redStreak} rodadas no vermelho: decidir na reunião</b>
+              <b className="font-semibold text-bad">{row.redStreak} rodadas no vermelho, decidir na reunião</b>
             ) : row.redStreak > 1 ? (
               `${row.redStreak}ª rodada seguida`
             ) : (
@@ -456,11 +449,6 @@ function RedRow({
           </span>
         </div>
       </div>
-      {mission && (
-        <span className={cn("type-body", mission.blocked ? "text-warn" : "text-mute")}>
-          Missão (+{mission.points}): {mission.todo.charAt(0).toLowerCase() + mission.todo.slice(1)}
-        </span>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         {task && <Deadline task={task} now={now} />}
         {task && (

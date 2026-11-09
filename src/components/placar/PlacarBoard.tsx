@@ -516,9 +516,9 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
                 <Label>Cliente</Label>
                 <Label>Dono</Label>
                 <Label>Meta</Label>
-                <Label>Resultado 4 sem.</Label>
+                <Label title="Soma ou média das últimas 4 semanas">4 semanas</Label>
                 <Label>Degrau</Label>
-                <Label>8 semanas</Label>
+                <Label>Histórico</Label>
                 {finance && <Label className="text-right">Mensalidade</Label>}
                 <span />
               </div>
@@ -581,9 +581,9 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
 // ---------- partes ----------
 
 const GRID_TEAM =
-  "xl:grid-cols-[5rem_minmax(12rem,2fr)_7rem_minmax(9rem,1.2fr)_minmax(10rem,1.2fr)_minmax(8.5rem,1fr)_5rem_8rem]";
+  "xl:grid-cols-[5rem_minmax(9rem,2fr)_5.5rem_minmax(7.5rem,1.2fr)_minmax(6.5rem,1fr)_minmax(7.5rem,1.1fr)_4.5rem_7rem]";
 const GRID_FINANCE =
-  "xl:grid-cols-[5rem_minmax(11rem,2fr)_6.5rem_minmax(8.5rem,1.2fr)_minmax(9.5rem,1.2fr)_minmax(8rem,1fr)_5rem_5.5rem_7.5rem]";
+  "xl:grid-cols-[5rem_minmax(8rem,2fr)_5.5rem_minmax(7rem,1.2fr)_minmax(6.5rem,1fr)_minmax(7rem,1.1fr)_4.5rem_5.5rem_7rem]";
 
 const feeOf = (r: Row) => (isNum(r.c.fee) ? r.c.fee : 0);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -812,13 +812,11 @@ function SectorChip({ name, rows, pressed, onClick }: { name: string; rows: Row[
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={cn("flex shrink-0 snap-start flex-col rounded-md px-3 py-1.5 text-left", pressed && "border-line-strong")}
+      title={`${plural(rows.length, "cliente", "clientes")}${up ? ` · ${up} em Prata ou Ouro` : ""}`}
+      className={cn("inline-flex h-8 shrink-0 snap-start items-center gap-1.5 rounded-full px-3.5 max-sm:h-11 max-sm:px-4", pressed && "border-line-strong")}
     >
-      <span className={cn("type-body font-semibold", pressed ? "text-fg" : "text-mute")}>{name}</span>
-      <span className="type-caption whitespace-nowrap text-dim">
-        {plural(rows.length, "cliente", "clientes")}
-        {up ? <span className="text-fg"> · {up} em Prata ou Ouro</span> : ""}
-      </span>
+      <span className={cn("type-caption font-semibold", pressed ? "text-fg" : "text-mute")}>{name}</span>
+      <span className="type-caption tabular-nums text-dim">{rows.length}</span>
     </Surface>
   );
 }
@@ -847,13 +845,17 @@ function TierCell({ c, ladder, className }: { c: BoardClient; ladder: ClientLadd
     return <span className={cn("flex items-center", className)}>{c.kind === "projeto" ? null : dim("sem grupo")}</span>;
   }
   return (
-    <span className={cn("flex min-w-0 flex-col gap-0.5", className)} title={nextText(ladder) ?? undefined}>
-      <span className="flex items-center gap-1.5">
-        <TierChip tier={ladder.tier} />
-        {ladder.tier && ladder.cobScope === "geral" && <Pill className="h-5 shrink-0 px-1.5 font-medium">COB geral</Pill>}
+    // Sem degrau, uma palavra só; com degrau, o chip e a leitura. De qual curva veio (COB geral) fica na ficha.
+    ladder.tier ? (
+      <span className={cn("flex min-w-0 flex-col gap-0.5", className)} title={nextText(ladder) ?? undefined}>
+        <TierChip tier={ladder.tier} className="self-start" />
+        <span className="truncate type-caption text-dim">{readText(ladder)}</span>
       </span>
-      <span className="truncate type-caption text-dim">{readText(ladder)}</span>
-    </span>
+    ) : (
+      <span className={cn("flex items-center", className)} title={readText(ladder)}>
+        {dim("a medir")}
+      </span>
+    )
   );
 }
 
@@ -862,18 +864,21 @@ const num = (t: string) => <span className="type-metric-sm text-fg">{t}</span>;
 
 /** Resultado das últimas 4 semanas: número em `metric-sm`, o resto apagado. */
 function resultNode(c: BoardClient, s: Score) {
-  if (c.kind === "projeto") return s.res === null ? dim("sem marco lançado") : s.res === 10 ? <>{num("No prazo")} {dim("marco")}</> : <>{num("Atrasado")} {dim("marco")}</>;
-  if (s.reason === "sem meta") return dim("combinar a meta");
-  if (!s.weeks) return dim("nenhum número lançado");
+  if (c.kind === "projeto") return s.res === null ? dim("sem marco") : s.res === 10 ? <>{num("No prazo")} {dim("marco")}</> : <>{num("Atrasado")} {dim("marco")}</>;
+  // Sem meta, a coluna da meta já diz "sem meta": repetir "combinar a meta" aqui só dobrava a linha.
+  if (s.reason === "sem meta") return null;
+  if (!s.weeks) return dim("sem número");
+  // A janela de 4 semanas já está no cabeçalho da coluna; só aparece aqui quando a leitura é parcial.
+  const partial = s.weeks < 4 ? ` · ${s.weeks} sem.` : "";
   if (c.meta_mode === "taxa" || c.meta_mode === "custo")
     return (
       <>
-        {num(fmt2(s.avg ?? 0))} {dim(`média · ${s.weeks} sem.`)}
+        {num(fmt2(s.avg ?? 0))} {dim(`média${partial}`)}
       </>
     );
   return (
     <>
-      {num(fmt2(s.sum))} {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)} de meta · ${s.weeks} sem.`)}
+      {num(fmt2(s.sum))} {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)}${partial}`)}
     </>
   );
 }
@@ -922,11 +927,9 @@ function ClientRow({
   const owner = c.owner.trim();
   const mt = c.kind === "projeto" ? "marco no prazo" : metaText(c);
   const metaTitle = [mt ?? "sem meta", c.meta_note].filter(Boolean).join(". ");
-  const chips: { text: string; tone: "warn" | "neutral" }[] = [];
-  if (c.active === false) chips.push({ text: "inativo", tone: "neutral" });
-  if (c.meta_review) chips.push({ text: "meta a revisar", tone: "warn" });
-  if (c.meta_auto) chips.push({ text: "meta automática", tone: "neutral" });
-  if (c.kind === "projeto") chips.push({ text: "projeto", tone: "neutral" });
+  // Uma linha, um aviso: só o que pede ação fica na lista. Meta automática e projeto moram no formulário do cliente.
+  const flag = c.active === false ? "inativo" : c.meta_review ? "meta a revisar" : null;
+  const flagNode = flag && <span className={c.active === false ? "text-mute" : "text-warn"}>{flag}</span>;
   const needsEntry = c.kind === "projeto" ? s.res === null : !s.hasW;
   const subline = [c.delivers, owner || "sem dono", finance ? (isNum(c.fee) ? fmtBRL(c.fee) : "sem valor") : ""].filter(Boolean).join(" · ");
 
@@ -950,21 +953,27 @@ function ClientRow({
       </button>
 
       <div className="col-start-2 row-start-1 flex min-w-0 flex-col xl:col-auto xl:row-auto">
-        <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 xl:flex-nowrap">
-          <strong className="max-w-full truncate type-subtitle text-fg">{c.name}</strong>
-          {chips.map((ch) => (
-            <Pill key={ch.text} tone={ch.tone} className="h-5 shrink-0 px-1.5">
-              {ch.text}
-            </Pill>
-          ))}
+        <strong className="line-clamp-2 type-subtitle leading-snug text-fg [overflow-wrap:anywhere]" title={c.name}>{c.name}</strong>
+        {(flag || c.delivers) && (
+          <span className="hidden truncate type-caption text-dim xl:block">
+            {flagNode}
+            {flag && c.delivers ? " · " : ""}
+            {c.delivers}
+          </span>
+        )}
+        <span className="truncate type-caption text-dim xl:hidden">
+          {flagNode}
+          {flag ? " · " : ""}
+          {subline}
         </span>
-        {c.delivers && <span className="hidden truncate type-caption text-dim xl:block">{c.delivers}</span>}
-        <span className="truncate type-caption text-dim xl:hidden">{subline}</span>
       </div>
 
-      <div className="hidden min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 type-body text-fg xl:flex">
-        <span className="whitespace-nowrap">{owner || dim("sem dono")}</span>
-        {owner && !c.owner_ok && <Pill className="h-5 shrink-0 px-1.5 font-medium">palpite</Pill>}
+      {/* Dono ainda não confirmado sai apagado, com a explicação na dica: a etiqueta em toda linha não informava nada. */}
+      <div
+        className={cn("hidden min-w-0 truncate type-body xl:block", owner && c.owner_ok ? "text-fg" : "text-mute")}
+        title={owner && !c.owner_ok ? "Dono a confirmar no formulário do cliente" : undefined}
+      >
+        {owner || dim("sem dono")}
       </div>
 
       <div className="col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col xl:col-span-1 xl:col-auto xl:row-auto" title={metaTitle}>
@@ -1023,7 +1032,7 @@ function ScoreSheet({ row, onClose }: { row: Row | null; onClose: () => void }) 
           <dl className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-0.5"><dt className="type-label text-dim">Resultado contra a meta</dt><dd className="type-subtitle tabular-nums text-fg">{s.res === null ? "s/n" : fmtScore(s.res)}</dd></div>
             <div className="flex flex-col gap-0.5"><dt className="type-label text-dim">Nota do cliente</dt><dd className="type-subtitle tabular-nums text-fg">{s.cs === null ? "s/n" : fmtScore(s.cs)}</dd></div>
-            <div className="col-span-2 flex flex-col gap-0.5"><dt className="type-label text-dim">Últimas 4 semanas</dt><dd className="type-body text-fg">{resultNode(row.c, s)}</dd></div>
+            <div className="col-span-2 flex flex-col gap-0.5"><dt className="type-label text-dim">Últimas 4 semanas</dt><dd className="type-body text-fg">{resultNode(row.c, s) ?? dim("sem meta, combinar com o cliente")}</dd></div>
           </dl>
           <Trail tones={row.trail.map((x) => x.tone)} scores={row.trail.map((x) => x.final)} size="md" />
           {row.ladder && <LadderSheet c={row.c} l={row.ladder} plat={row.plat} />}

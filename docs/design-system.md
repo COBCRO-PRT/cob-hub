@@ -569,3 +569,17 @@ em tela larga. Decisões:
 - Lista do Placar: linha com altura mínima (não fixa); meta e resultado quebram em 2 linhas em vez de cortar.
 - Ficha da nota usa o modal padrão (36rem) e a régua alterna rótulos de linha quando dois marcos ficam a menos de um
   quarto da barra.
+
+## Menos informação por linha (09/11/2026)
+
+Pedido do Matheus: "muita coisa acavalada, muita informação". Medido na tela dele (1440px): a lista do Placar estourava a largura, as etiquetas passavam por cima da coluna do dono e o botão de lançar ficava cortado. A causa era a base de 17px valendo desde 1280px.
+
+Regras que ficam:
+
+- **Base de 17px só a partir de 1440px** (`@media (width >= 90rem)`); 18px a partir de 1680px. Entre 1280 e 1439 fica em 16px. Toda largura de coluna do Placar foi refeita para caber em 1280.
+- **Uma linha da lista, um aviso.** Na linha do cliente só fica o que pede ação ("meta a revisar", "inativo"), em texto colorido na segunda linha, sem etiqueta. "Meta automática", "projeto", "palpite" e "COB geral" saíram da lista e continuam no formulário e na ficha.
+- **Nome do cliente nunca some:** quebra em até duas linhas em vez de cortar.
+- **Sem repetir o que a coluna ao lado já diz:** "sem meta" não ganha "combinar a meta" na coluna seguinte; a janela de 4 semanas mora no cabeçalho ("4 semanas") e só aparece na célula quando a leitura é parcial; sem degrau vira uma palavra ("a medir").
+- **Filtro de setor em chip de uma linha** (nome + quantidade). O detalhe "em Prata ou Ouro" foi para a dica.
+- **Rodada:** o cartão de missão tem uma missão e um rodapé de uma linha com o degrau; os lançados por pessoa entraram no próprio chip do filtro; o painel "No vermelho" mostra só o que é do plano de recuperação (dono, sequência, prazo, tarefa), sem repetir a missão; o mapa da carteira é só cor e nome; a tabela da temporada mostra só conquista destravada; o pódio perdeu a frase que repetia "Como pontua".
+- **Prova:** `scrollWidth > clientWidth` nas linhas da lista tem de dar zero em 1280, 1366, 1440, 1536 e 1800. Gotcha: o Turbopack guarda o CSS antigo em `.next/dev` mesmo depois de reiniciar; para valer mudança em `globals.css`, mover `.next/dev` e subir de novo.

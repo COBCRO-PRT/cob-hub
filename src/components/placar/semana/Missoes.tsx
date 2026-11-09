@@ -21,7 +21,19 @@ export const matches = (picked: string, owner: string) =>
   picked === "todos" || (picked === SEM_DONO ? !owner : owner === picked);
 
 /** Chips de pessoa com a linguagem de "selecionado" da D2.2: `surface-2` + `fg`, sem ciano. */
-export function PersonFilter({ owners, picked, onPick }: { owners: string[]; picked: string; onPick: (o: string) => void }) {
+export function PersonFilter({
+  owners,
+  picked,
+  onPick,
+  launch = [],
+}: {
+  owners: string[];
+  picked: string;
+  onPick: (o: string) => void;
+  /** Números da semana lançados por pessoa: aparecem dentro do próprio chip, em vez de numa fileira à parte. */
+  launch?: LaunchLine[];
+}) {
+  const done = new Map(launch.map((l) => [l.owner, l]));
   const opts = [
     { id: "todos", label: "Todos" },
     ...owners.map((o) => ({ id: o, label: o })),
@@ -43,6 +55,14 @@ export function PersonFilter({ owners, picked, onPick }: { owners: string[]; pic
             className={cn("inline-flex h-8 items-center rounded-full px-3.5 type-caption font-semibold max-sm:h-11 max-sm:px-4", on ? "border-line-strong text-fg" : "text-mute")}
           >
             {o.label}
+            {done.has(o.id) && (
+              <span
+                className={cn("ml-1.5 font-medium tabular-nums", done.get(o.id)!.done === done.get(o.id)!.total ? "text-good" : "text-dim")}
+                aria-label={`${done.get(o.id)!.done} de ${done.get(o.id)!.total} números lançados`}
+              >
+                {done.get(o.id)!.done}/{done.get(o.id)!.total}
+              </span>
+            )}
           </Surface>
         );
       })}
@@ -55,19 +75,17 @@ const FIRST = 6;
 const RED_LIMIT = 4;
 
 /**
- * Missões da semana (D2.5): prazo e lançados por pessoa no título, o filtro de pessoa logo abaixo
+ * Missões da semana (D2.5): prazo no título, o filtro de pessoa logo abaixo (com os lançados dentro do chip)
  * e a grade de 2 colunas com a missão de virada em destaque. 6 visíveis, "Ver todas" abre o resto.
  */
 export function Missions({
   missions,
-  launch,
   week,
   picked,
   filter,
   className,
 }: {
   missions: Mission[];
-  launch: LaunchLine[];
   week: string;
   picked: string;
   /** Os chips de pessoa, que filtram esta seção e as vizinhas. */
@@ -80,27 +98,11 @@ export function Missions({
   const open = list.filter((m) => !m.done);
   const prize = open.reduce((n, m) => n + m.points, 0);
   const shown = all ? list : list.slice(0, FIRST);
-  const bars = launch.filter((l) => matches(picked, l.owner) && picked !== SEM_DONO);
   const deadline = now ? `fecha em ${countdown(closesAt(week) - now)}, segunda às 10h` : `${weekLabel(week)}, fecha segunda às 10h`;
 
   return (
     <section id="missoes" aria-label="Missões da semana" className={cn("flex scroll-mt-20 flex-col gap-4", className)}>
       <SectionTitle title="Missões da semana" hint={`${deadline} · ${plural(open.length, "aberta", "abertas")}, +${prize} pts em jogo`} />
-
-      {/* Lançados por pessoa e o filtro ficam em linhas que quebram: no celular o slot do título não cabe. */}
-      {bars.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Números da semana lançados">
-          <Label className="mr-1">Lançados</Label>
-          {bars.map((l) => (
-            <Pill key={l.owner} tone={l.done === l.total ? "good" : "neutral"} aria-label={`${l.owner}: ${l.done} de ${l.total} lançados`}>
-              {l.owner}{" "}
-              <span className="tabular-nums">
-                {l.done}/{l.total}
-              </span>
-            </Pill>
-          ))}
-        </div>
-      )}
 
       {filter}
 
@@ -170,24 +172,22 @@ export function MissionCard({ m }: { m: Mission }) {
           </span>
         </span>
         <span className={cn("type-body", m.blocked ? "text-warn" : m.done ? "text-mute" : "text-fg")}>{m.todo}</span>
-        {m.degrau?.todo && <DegrauLine tier={m.degrau.tier} todo={m.degrau.todo} points={m.degrau.points} />}
         {big && !m.done && (
           <Bar value={m.score ?? 0} max={RED_LIMIT} tone="bad" size="sm" label={`nota ${m.score === null ? "sem nota" : fmtScore(m.score)} de ${RED_LIMIT} para sair do vermelho`} />
         )}
+        {m.degrau?.todo && <DegrauLine tier={m.degrau.tier} todo={m.degrau.todo} points={m.degrau.points} />}
       </Surface>
     </motion.li>
   );
 }
 
-/** Segunda linha da missão: o degrau de agora e o que falta para o próximo, com os +3 da escada. */
+/** Rodapé da missão numa linha só: o degrau de agora, o que falta para o próximo e os +3 da escada. */
 function DegrauLine({ tier, todo, points }: { tier: RodadaClient["tier"]; todo: string; points: number }) {
   return (
-    <span className="flex items-start justify-between gap-3 border-t border-line pt-2.5">
-      <span className="flex min-w-0 flex-col gap-1">
-        <TierChip tier={tier} className="self-start" />
-        <span className="type-caption text-mute">{todo}</span>
-      </span>
-      <span className="shrink-0 type-caption font-semibold tabular-nums text-fg">+{points}</span>
+    <span className="flex items-center gap-2 type-caption text-mute">
+      <TierChip tier={tier} className="shrink-0" />
+      <span className="line-clamp-2 min-w-0 flex-1" title={todo}>{todo}</span>
+      <span className="shrink-0 font-semibold tabular-nums text-fg">+{points}</span>
     </span>
   );
 }
@@ -231,7 +231,7 @@ export function ClientMap({
           ))}
         </div>
         {list.length ? (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-2">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
             <AnimatePresence initial={false}>
               {list.map((r) => (
                 <motion.li key={r.client} layout="position" transition={spring} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-w-0">
@@ -242,7 +242,6 @@ export function ClientMap({
                   >
                     <Ring value={r.score} tone={r.tone} size={32} bare label={`${r.name}: ${r.score === null ? "sem nota" : `nota ${fmtScore(r.score)}`}, ${TONE_LABEL[r.tone].toLowerCase()}`} />
                     <span className="line-clamp-2 w-full type-caption text-fg [overflow-wrap:anywhere]">{r.name}</span>
-                    <TierChip tier={r.tier} />
                     {r.greenStreak >= 2 && (
                       <span className="inline-flex items-center gap-0.5 type-caption tabular-nums text-good">
                         <Flame aria-hidden className="size-3" strokeWidth={1.75} />

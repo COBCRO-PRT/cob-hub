@@ -7,7 +7,7 @@ import { Columns, Empty, Gauge, Label, Metric, Modal, Pill, PlayerLevel, Section
 import { ACHIEVEMENTS, POINTS, SEASON, TEAM_GOAL } from "@/lib/placar/rodada-rules";
 import type { SeasonLine } from "@/lib/placar/jogo";
 import type { OwnerLine, RodadaClient, SemanaSnapshot } from "@/lib/placar/rodada";
-import { addWeeks, fmt2, weekLabel } from "@/lib/placar/score";
+import { addWeeks, weekLabel } from "@/lib/placar/score";
 import { cn } from "@/lib/utils";
 import { ACH_ICON, closesAt, pct, plural, shortWeek } from "./comum";
 
@@ -329,14 +329,6 @@ export function Podium({
           ))}
         </ul>
       )}
-      <p className="text-center type-caption text-dim">
-        XP da rodada = média de pontos por cliente × 10.{" "}
-        {owners[0] && owners[0].points > 0 && (
-          <>
-            {owners[0].owner} fez {fmt2(owners[0].avg)} {owners[0].avg === 1 ? "pt" : "pts"} por cliente.
-          </>
-        )}
-      </p>
     </div>
   );
 }
@@ -368,10 +360,10 @@ export function SeasonTable({ table, picked, onPick, className }: { table: Seaso
                       <span className="flex items-center justify-between gap-3">
                         <span className="truncate type-subtitle text-fg">{l.owner}</span>
                         <span className="flex shrink-0 gap-1" aria-label={`${l.achievements.length} de ${ACHIEVEMENTS.length} conquistas`}>
-                          {ACHIEVEMENTS.map((a) => {
+                          {/* Só as destravadas: a lista inteira, com cadeado, está em Conquistas da temporada. */}
+                          {ACHIEVEMENTS.filter((a) => l.achievements.includes(a.id)).map((a) => {
                             const Icon = ACH_ICON[a.id];
-                            const on = l.achievements.includes(a.id);
-                            return <Icon key={a.id} aria-hidden className={cn("size-4", on ? "text-fg" : "text-dim opacity-60")} strokeWidth={1.75} />;
+                            return <Icon key={a.id} aria-hidden className="size-4 text-fg" strokeWidth={1.75} />;
                           })}
                         </span>
                       </span>
