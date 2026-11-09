@@ -510,7 +510,7 @@ e no `title`). Sem login: herói vira "Entre para jogar a rodada" e os KPIs some
 - Vista do financeiro: igual, com a coluna de mensalidade e os 4 KPIs em R$.
 
 ### Rodada da semana
-- Cabeçalho + trilha das 14 rodadas (igual, segmentos em `fg` para fechadas e halo na atual).
+- Cabeçalho + trilha das rodadas da temporada (igual, segmentos em `fg` para fechadas e halo na atual).
 - Linha 1: **herói** (col-span 7) = `Gauge` grande da meta do time + "faltam N" + `Columns` pequeno (14
   rodadas, só verdes, altura 80) embaixo; **pódio** (col-span 5) = três colunas de altura proporcional ao XP,
   1º com fio `gold`, 4º em linha abaixo.

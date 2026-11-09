@@ -23,7 +23,7 @@ export default function DsPage() {
           <p className="type-subtitle text-fg">Subtitle 16 · Green Paradise</p>
           <p className="type-body text-mute">Body 14 · Lançar 170 contatos na semana para sair do vermelho.</p>
           <p className="type-caption text-dim">Caption 12 · Sayuri · FABU</p>
-          <Label>Label 11 · temporada 1 · rodada 1 de 14</Label>
+          <Label>Label 11 · temporada 1 · rodada 1 de 12</Label>
           <div className="flex flex-wrap items-end gap-6">
             <span className="type-metric-lg text-fg">6,8</span>
             <span className="type-metric text-good">24</span>

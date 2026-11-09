@@ -38,8 +38,9 @@ Tudo continua saindo do resultado do cliente. O jogo só dá forma ao que os pon
 
 ### Temporada
 
-- Temporada 1 = 14 rodadas, da semana de 26/10/2026 à semana de 25/01/2027 (fecha em 01/02/2027).
-- A tela mostra "Rodada N de 14" e a trilha da temporada (rodadas fechadas acesas).
+- Temporada 1 = 12 rodadas, da semana de 09/11/2026 à semana de 25/01/2027 (fecha em 01/02/2027).
+- A tela mostra "Rodada N de 12" e a trilha da temporada (rodadas fechadas acesas).
+- Zerado em 09/11/2026 a pedido do Matheus: as rodadas de 26/10 e 02/11 foram aquecimento e saíram da conta (linhas apagadas de `placar_rodada`, cópia em `~/Projects/_backups/placar-dados-2026-11-09`). Lançamentos, metas e curvas ficaram. Semana anterior a 09/11 não fecha mais (`closeWeek` devolve sem gravar). O que acumula recomeça do zero: pontos, XP, nível, conquistas, sequência no verde (só conta rodada da temporada, então o primeiro selo possível é na rodada 4). O que compara esta semana com a passada segue valendo: virada usa a cor real da semana anterior, subir de degrau compara com o degrau lido na semana anterior quando não há rodada congelada (rodada 1 ou cliente novo), e vermelho há 4 semanas continua escalando a tarefa.
 
 ### XP e nível (por dono)
 

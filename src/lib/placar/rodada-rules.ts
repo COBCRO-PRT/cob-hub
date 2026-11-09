@@ -4,8 +4,11 @@
  */
 import { lastClosedWeek } from "./score";
 
-/** Primeira rodada do trimestre nov a jan (fecha em 02/11/2026). */
-export const QUARTER_START = "2026-10-26";
+/**
+ * Primeira rodada da temporada (fecha em 16/11/2026). O jogo foi zerado em 09/11/2026:
+ * as duas rodadas de aquecimento (26/10 e 02/11) saíram da conta e nada antes daqui pontua.
+ */
+export const QUARTER_START = "2026-11-09";
 
 /** Rodada que a tela abre sem parâmetro: a última semana terminada; antes da 1ª rodada, a própria 1ª (em prévia). */
 export function defaultRodadaWeek(): string {
@@ -20,10 +23,10 @@ export const STREAK = 4;
 
 // ---------- camada de jogo ----------
 
-/** Temporada 1: 14 rodadas, da semana de 26/10/2026 à de 25/01/2027. */
-export const SEASON = { name: "Temporada 1", start: QUARTER_START, rounds: 14 } as const;
+/** Temporada 1: 12 rodadas, da semana de 09/11/2026 à de 25/01/2027 (fecha em 01/02/2027). */
+export const SEASON = { name: "Temporada 1", start: QUARTER_START, rounds: 12 } as const;
 
-/** Rodada da temporada (1 a 14) de uma segunda-feira; fora da temporada, null. */
+/** Rodada da temporada (1 a 12) de uma segunda-feira; fora da temporada, null. */
 export function roundOf(week: string): number | null {
   const n = Math.round((Date.parse(week + "T00:00:00Z") - Date.parse(SEASON.start + "T00:00:00Z")) / (7 * 86400000)) + 1;
   return n >= 1 && n <= SEASON.rounds ? n : null;

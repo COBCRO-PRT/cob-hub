@@ -127,6 +127,12 @@ export function computeRodada(
   const lists = byClient(entries);
   const ladder = buildLadder(clients, lists, benchmarks, week);
   const empty: ClientLadder = { read: null, tier: "", next: null, steps: [], market: null, cob: null, cobScope: null, group: 0 };
+  // Sem rodada congelada antes (rodada 1, cliente novo), o ponto de partida é o degrau lido na semana anterior.
+  let before: Map<string, ClientLadder> | null = null;
+  const tierBefore = (id: string): Tier => {
+    before ??= buildLadder(clients, lists, benchmarks, addWeeks(week, -1));
+    return before.get(id)?.tier ?? "";
+  };
 
   return clients
     .filter((c) => c.active)
@@ -134,10 +140,11 @@ export function computeRodada(
       const s = scoreFor(c, week, lists.get(c.id) ?? []);
       const tone = s.tone;
       const prev = toneAt(c, addWeeks(week, -1));
-      const greenStreak = tone === "good" ? streak(toneAt, c, week, "good") : 0;
+      // Sequência no verde só conta rodada da temporada: semana anterior ao início do jogo não vale selo.
+      const greenStreak = tone === "good" ? Math.min(streak(toneAt, c, week, "good"), roundOf(week) ?? 0) : 0;
       const redStreak = tone === "bad" ? streak(toneAt, c, week, "bad") : 0;
       const l = ladder.get(c.id) ?? empty;
-      const tierPrev = prevTierOf(frozen, c.id, week);
+      const tierPrev = prevTierOf(frozen, c.id, week) || tierBefore(c.id);
 
       let points = 0;
       const badges: string[] = [];
@@ -492,6 +499,8 @@ export interface CloseResult {
  * Rodar de novo não mexe nas notas congeladas; só cria a tarefa que tenha faltado.
  */
 export async function closeWeek(store: PlacarStore, week: string, origin: string): Promise<CloseResult> {
+  // Semana anterior ao início da temporada não congela: o jogo começa em QUARTER_START.
+  if (week < QUARTER_START) return { week, already: false, saved: 0, reds: 0, lows: 0, tasks: {}, taskError: null };
   const { clients, entries, frozen, benchmarks } = await load(store, week);
   const already = frozen.some((r) => r.week === week);
   const now = new Date().toISOString();

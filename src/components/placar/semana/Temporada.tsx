@@ -14,7 +14,7 @@ import { ACH_ICON, closesAt, pct, plural, shortWeek } from "./comum";
 const fmtDay = (ms: number) => new Date(ms).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
 /**
- * As 14 rodadas da temporada (D2.5): fechada em `fg`, a em andamento com o halo atrás, a futura só trilho.
+ * As rodadas da temporada (D2.5): fechada em `fg`, a em andamento com o halo atrás, a futura só trilho.
  * Nenhum ciano sólido: o acento aparece só como luz. Tocar numa rodada abre as datas.
  */
 export function SeasonTrack({ season, week, live }: { season: SemanaSnapshot["season"]; week: string; live: string }) {
