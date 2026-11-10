@@ -105,7 +105,8 @@ export const toneOf = (n: number | null): Tone =>
  * Janela de 4 semanas até W. Lançamento de mês inteiro (weeks = 4) é rateado
  * pelas semanas que cobre. A nota do cliente vale por 5 semanas (W e as 4
  * anteriores) e, quando existe, vale a menor entre ela e o resultado. Projeto
- * tira 10 com o marco no prazo e 0 fora dele.
+ * tira 10 com o marco no prazo e 0 fora dele. Setor Social exige a nota do
+ * cliente: sem ela fica cinza mesmo com número (docs/placar-semana.md).
  */
 export function scoreFor(c: BoardClient, W: string, list: PlacarEntry[]): Score {
   const win = weeksBack(W, 4);
@@ -155,6 +156,11 @@ export function scoreFor(c: BoardClient, W: string, list: PlacarEntry[]): Score 
     const avg = mean(rates);
     res = avg > 0 ? Math.min(10, (10 * mw) / avg) : 10;
   } else res = Math.min(10, (10 * sum) / (mw * covered.size));
+
+  if (res !== null && cs === null && c.sector === "social") {
+    res = null;
+    reason = "falta nota do cliente";
+  }
 
   const final = res === null ? null : cs === null ? res : Math.min(res, cs);
   return {

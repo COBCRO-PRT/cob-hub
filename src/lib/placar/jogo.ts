@@ -214,6 +214,9 @@ function simulate(c: PlacarClient, list: PlacarEntry[], week: string, value: num
   return scoreFor(c, week, [...list.filter((x) => x.week !== week), e]).final;
 }
 
+/** Setor Social: sem a avaliação do cliente o número não conta (docs/placar-semana.md, "fora da mídia"). */
+const NEED_CLIENT_SCORE = "Pedir a nota do cliente do mês (0 a 10) e lançar no placar";
+
 /**
  * O que lançar na semana `week` para a nota chegar em `target` (4 = amarelo,
  * 7 = verde). Simula na própria régua; nunca refaz a conta por fora.
@@ -229,6 +232,7 @@ export function needToReach(
     return { todo: `A avaliação do cliente (${nf.format(s.cs)}) segura a nota: conversar com ele`, blocked: true };
   }
   if (c.kind === "projeto") return { todo: "Entregar o marco no prazo e marcar no placar", blocked: false };
+  if (c.sector === "social" && s.cs === null) return { todo: NEED_CLIENT_SCORE, blocked: true };
   const mw = metaWeek(c);
   if (mw === null) return { todo: "Definir a meta do cliente no placar", blocked: false };
 
@@ -344,7 +348,11 @@ export function weekMissions(
           ? "Marcar o marco da semana no placar"
           : metaWeek(c) === null
             ? "Definir a meta do cliente no placar"
-            : "Lançar o número da semana no placar";
+            : c.sector === "social" && s.cs === null
+              ? s.weeks
+                ? NEED_CLIENT_SCORE
+                : "Lançar o número e a nota do cliente (0 a 10) no placar"
+              : "Lançar o número da semana no placar";
     } else ({ todo, blocked } = needToReach(c, list, week, target));
 
     const l = ladder.get(c.id);

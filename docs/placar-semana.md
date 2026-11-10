@@ -32,6 +32,27 @@ nunca punem: não existe ponto negativo.
 - Meta do time: % da carteira ativa no verde. Alvo: 70% em janeiro.
 - Clientes sem dono contam para a meta do time, mas não entram no ranking.
 
+## Clientes fora da mídia: social e projeto (09/11/2026)
+
+Pergunta do Matheus: "como medir clientes que não são de tráfego, só rede social ou projeto de site, como Mônaco?".
+A régua é a mesma do placar, muda o que entra nela. Cada dono escolhe a régua na ficha e lança toda segunda,
+porque esses clientes não têm conta no iHub e nada chega sozinho.
+
+| Contrato | Tipo na ficha | O que se lança toda segunda | Nota |
+|---|---|---|---|
+| Projeto de site ou setup (Mônaco, Pata Verde) | projeto | o marco da semana saiu? sim ou não | no prazo 10, atrasado 0, semana sem marco previsto fica em branco |
+| Só rede social (Barrfab, Escola Impulso) | resultado, setor Social, meta de entrega ("12 posts/mês") | posts publicados no mês (marcar "4 semanas") e a nota do cliente | entrega ÷ combinado, limitada pela nota do cliente |
+| Social que vende | resultado, setor Social, meta de resultado (conversas no direct, pedidos, alcance) | o número do Instagram Insights, uma vez por mês, e a nota do cliente | igual a qualquer meta, limitada pela nota do cliente |
+
+- Projeto precisa de um cronograma com uma entrega por semana escrito na ficha antes de começar. Quando o site
+  entra no ar, o projeto acabou: o cliente vira "resultado" com meta de contatos do site ou vai para inativo.
+- **Setor Social exige a nota do cliente.** A meta de entrega tende a dar 10 toda semana, então quem diz se o
+  trabalho está bom é o cliente. Sem nota dele nas últimas 5 semanas, o cliente fica cinza com o motivo
+  "falta nota do cliente", mesmo com o número lançado, e a missão pede a nota.
+- Social e projeto não entram na escada do benchmark: não há custo por resultado para comparar. A coluna
+  "Degrau" fica em branco para eles. "Sem grupo" só aparece em cliente de mídia sem setor ou tipo de resultado
+  confirmado na ficha.
+
 ## Camada de jogo (pedida pelo Matheus em 27/10/2026: "tudo gameficado, interativo")
 
 Tudo continua saindo do resultado do cliente. O jogo só dá forma ao que os pontos já medem.
@@ -75,7 +96,7 @@ Para cada cliente, a tela diz o que fazer nesta semana e quanto vale:
 | Virar | estava vermelho na rodada anterior | +5 (e +1 de leitura) |
 | Selo | 3, 7, 11... rodadas seguidas no verde | +5 (e +2 do verde) |
 | Chegar no verde | amarelo agora | +2 |
-| Tirar do cinza | sem leitura (falta número, meta ou marco) | +1 |
+| Tirar do cinza | sem leitura (falta número, meta, marco ou, em Social, a nota do cliente) | +1 |
 
 - A missão mostra o número que falta lançar na semana para chegar lá ("lançar 12 leads"). A conta é a
   própria régua do placar simulando o lançamento, nunca uma conta paralela.

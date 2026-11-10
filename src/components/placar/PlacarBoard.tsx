@@ -29,6 +29,7 @@ import {
   fmtRead,
   KIND_LABEL,
   nextText,
+  onLadder,
   PLATFORM_LABEL,
   platformCurve,
   platformFor,
@@ -842,7 +843,12 @@ function readText(l: ClientLadder): string {
 /** Chip do degrau e a leitura de custo, na lista e na ficha. */
 function TierCell({ c, ladder, className }: { c: BoardClient; ladder: ClientLadder | null; className?: string }) {
   if (!ladder) {
-    return <span className={cn("flex items-center", className)}>{c.kind === "projeto" ? null : dim("sem grupo")}</span>;
+    // Social e projeto ficam fora da escada; cliente de mídia sem grupo ainda precisa de setor e tipo na ficha.
+    return (
+      <span className={cn("flex items-center", className)} title={onLadder(c) ? "Confirmar setor e tipo de resultado na ficha" : undefined}>
+        {onLadder(c) ? dim("sem grupo") : null}
+      </span>
+    );
   }
   return (
     // Sem degrau, uma palavra só; com degrau, o chip e a leitura. De qual curva veio (COB geral) fica na ficha.
@@ -870,15 +876,17 @@ function resultNode(c: BoardClient, s: Score) {
   if (!s.weeks) return dim("sem número");
   // A janela de 4 semanas já está no cabeçalho da coluna; só aparece aqui quando a leitura é parcial.
   const partial = s.weeks < 4 ? ` · ${s.weeks} sem.` : "";
+  // Social com número e sem a avaliação do cliente: o número está lá, mas a nota não sai sem ela.
+  const miss = s.reason === "falta nota do cliente" ? ` · ${s.reason}` : "";
   if (c.meta_mode === "taxa" || c.meta_mode === "custo")
     return (
       <>
-        {num(fmt2(s.avg ?? 0))} {dim(`média${partial}`)}
+        {num(fmt2(s.avg ?? 0))} {dim(`média${partial}${miss}`)}
       </>
     );
   return (
     <>
-      {num(fmt2(s.sum))} {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)}${partial}`)}
+      {num(fmt2(s.sum))} {dim(`de ${fmt1((s.mw ?? 0) * s.weeks)}${partial}${miss}`)}
     </>
   );
 }
@@ -1150,7 +1158,7 @@ function Rule() {
         <B>Cliente de projeto</B> (site, loja, implantação) tira 10 com o marco entregue no prazo e 0 fora dele.
       </P>
       <P>
-        <B>Verde</B> de 7 a 10, <B>amarelo</B> de 4 a 6,9, <B>vermelho</B> abaixo de 4, <B>cinza</B> sem meta ou sem número. O número da
+        <B>Verde</B> de 7 a 10, <B>amarelo</B> de 4 a 6,9, <B>vermelho</B> abaixo de 4, <B>cinza</B> sem meta ou sem número (em Social, também sem a nota do cliente). O número da
         semana entra até segunda, 10h. A decisão sobre cliente e liderança é no fim do trimestre.
       </P>
     </section>

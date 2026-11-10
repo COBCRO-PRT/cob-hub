@@ -193,6 +193,12 @@ export interface ClientLadder {
 }
 
 /**
+ * Quem pode ter degrau: cliente de resultado fora do setor Social. Projeto e social
+ * não têm custo por resultado para comparar (docs/placar-semana.md, "fora da mídia").
+ */
+export const onLadder = (c: Pick<BoardClient, "kind" | "sector">) => c.kind === "resultado" && c.sector !== "social";
+
+/**
  * Degrau de cada cliente ativo de mídia na semana W. A curva da COB de cada grupo
  * sai das leituras de 12 semanas dos clientes do grupo; o degrau de cada um usa
  * a janela de 4 semanas, igual à nota.
@@ -206,7 +212,7 @@ export function buildLadder(
   const out = new Map<string, ClientLadder>();
   const longReads = new Map<string, number[]>();
   const kindReads = new Map<string, number[]>();
-  const media = clients.filter((c) => c.active && c.kind === "resultado" && c.result_kind && c.sector);
+  const media = clients.filter((c) => c.active && onLadder(c) && c.result_kind && c.sector);
   for (const c of media) {
     const r = costFor(c, W, entriesByClient.get(c.id) ?? [], COB_WEEKS);
     if (r && r.value !== null) {
