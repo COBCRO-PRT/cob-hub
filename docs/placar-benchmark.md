@@ -66,6 +66,14 @@ regra da skill google-ads-cob). Quando o teto é menor que o degrau, o teto mand
   de volume recalculada todo dia 1 (`/api/placar/cron/metas`, Vercel Cron 09h BRT): verba ÷ custo-alvo do próximo
   degrau acima do atual (venda: verba × retorno-alvo). Quem está em Ouro mira o próprio Ouro. A nota de meta diz a
   conta feita e a data; `meta_review` volta a falso. `?dry=1` só calcula.
+- **Piso da meta automática** (11/11, pedido do Matheus: "metas desafiadoras, coerentes e de empresa séria"): a meta
+  nunca fica abaixo do que o cliente já faz com a verba, mais 10% (verba ÷ custo atual × 1,1; venda: verba × retorno
+  atual × 1,1). Antes, quem já custava menos que o Ouro ganhava meta pelo custo do Ouro e batia a meta sem esforço
+  (Expresso Placas: meta 240 com 878 contatos no mês). A nota de meta diz "já faz R$ 4,65, meta 10% acima".
+  E um teto: a meta sobe no máximo 50% sobre o que o cliente faz hoje com a verba, um degrau de cada vez
+  (BeeMon a R$ 161 por lead viraria meta 14x maior mirando Bronze). Sem leitura ainda, vale só a régua do degrau.
+- Meta manual acima da régua é mantida como está, com `meta_auto` desligado, para a régua não baixar meta que o
+  dono assumiu com o cliente (Cave Antiga R$ 12.500, Brisa loja R$ 18.000).
 - A escada recalcula a cada trimestre junto com os Rocks. No meio do trimestre a referência não muda.
 - A meta do trimestre de cada cliente é **subir um degrau**. Quem está em Ouro é cobrado em volume.
 
