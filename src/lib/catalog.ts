@@ -26,7 +26,7 @@ export const BRAND_MARK: Record<ShortcutBrand, string> = {
   dynamic: "D",
   sentinel: "S",
   clickup: "C",
-  panel: "A",
+  panel: "I",
   propostas: "P",
   cob: "B",
   financeiro: "F",
@@ -37,7 +37,7 @@ export const SHELVES: Shelf[] = [
   {
     id: "dia-a-dia",
     title: "O dia a dia",
-    hint: "As cinco telas que resolvem o dia. O resto está no rodapé.",
+    hint: "As quatro telas que resolvem o dia. O resto está no rodapé.",
     items: [
       {
         id: "clickup",
@@ -57,22 +57,13 @@ export const SHELVES: Shelf[] = [
         note: "o endereço ainda tem o nome antigo",
       },
       {
-        id: "aprovacoes",
-        name: "Aprovações",
-        what: "A fila de artes esperando decisão, agrupada por cliente.",
-        url: "https://aprovar.srv1807772.hstgr.cloud",
-        host: "aprovar",
+        id: "intelligence",
+        name: "CO-B Intelligence",
+        what: "Cada cliente com cronograma e inteligência. A Visão e as Aprovações estão na mesma lateral.",
+        url: "https://aprovar.srv1807772.hstgr.cloud/ci/",
+        host: "aprovar / ci",
         brand: "panel",
-        note: "só abre com o seu link pessoal, senão dá not found",
-      },
-      {
-        id: "visao",
-        name: "Visão",
-        what: "Onde cada cliente parou, agora. Uma linha por cliente, uma coluna por etapa.",
-        url: "https://aprovar.srv1807772.hstgr.cloud/visao",
-        host: "aprovar / visao",
-        brand: "panel",
-        note: "engoliu a Torre, o Cockpit e o Time de IA, que viraram aba lá dentro",
+        note: "entra com o seu usuário e senha do painel",
       },
       {
         id: "sentinel",
