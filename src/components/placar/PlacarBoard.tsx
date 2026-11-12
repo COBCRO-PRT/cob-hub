@@ -64,7 +64,9 @@ import {
   type PillTone,
 } from "@/components/ui";
 import { PageHeader } from "./PageHeader";
-import type { Audience, BoardClient, PlacarSnapshot, Tier } from "@/lib/placar/types";
+import type { Audience, BoardClient, PlacarPedido, PlacarSnapshot, Tier } from "@/lib/placar/types";
+import { nextMonth } from "@/lib/placar/pedido-shared";
+import { PedidoBlock } from "./PedidoBlock";
 import { ClientDialog, EntryDialog } from "./PlacarDialogs";
 
 const OWNERS = ["Matheus", "Ramon", "Israel", "Sayuri"];
@@ -150,7 +152,7 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
         setState("error");
         return;
       }
-      setData({ clients: body.clients, entries: body.entries, benchmarks: body.benchmarks ?? [], store: body.store });
+      setData({ clients: body.clients, entries: body.entries, benchmarks: body.benchmarks ?? [], pedidos: body.pedidos ?? [], links: body.links ?? {}, store: body.store });
       setState("ok");
     } catch {
       if (mine !== seq.current) return;
@@ -554,7 +556,13 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
         <Rule />
       </div>
 
-      <ScoreSheet row={sheet} onClose={() => setSheet(null)} />
+      <ScoreSheet
+        row={sheet}
+        pedido={sheet ? (data?.pedidos.find((p) => p.client === sheet.c.id && p.month === nextMonth()) ?? null) : null}
+        link={sheet ? (data?.links[sheet.c.id] ?? null) : null}
+        onSaved={load}
+        onClose={() => setSheet(null)}
+      />
 
       {week && (
         <EntryDialog
@@ -1024,7 +1032,19 @@ function ClientRow({
 }
 
 /** Folha com a conta da nota: no toque substitui a dica de hover. */
-function ScoreSheet({ row, onClose }: { row: Row | null; onClose: () => void }) {
+function ScoreSheet({
+  row,
+  pedido,
+  link,
+  onSaved,
+  onClose,
+}: {
+  row: Row | null;
+  pedido: PlacarPedido | null;
+  link: string | null;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
   const s = row?.s;
   return (
     <Modal open={row !== null} onClose={onClose} title={row ? `Como saiu a nota de ${row.c.name}` : "Nota"}>
@@ -1044,6 +1064,7 @@ function ScoreSheet({ row, onClose }: { row: Row | null; onClose: () => void }) 
           </dl>
           <Trail tones={row.trail.map((x) => x.tone)} scores={row.trail.map((x) => x.final)} size="md" />
           {row.ladder && <LadderSheet c={row.c} l={row.ladder} plat={row.plat} />}
+          {row.c.active && <PedidoBlock client={row.c} pedido={pedido} link={link} onSaved={onSaved} />}
         </div>
       )}
     </Modal>

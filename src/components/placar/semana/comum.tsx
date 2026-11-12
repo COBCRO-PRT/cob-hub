@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Award, ChevronsUp, Crown, Eye, Medal, PenLine, Shield, ShieldCheck, Sparkles, Target, Timer, TrendingUp, type LucideIcon, Zap } from "lucide-react";
+import { Award, ChevronsUp, Crown, Eye, Medal, MessageSquare, PenLine, Shield, ShieldCheck, Sparkles, Target, Timer, TrendingUp, type LucideIcon, Zap } from "lucide-react";
 import type { PillTone } from "@/components/ui";
 import { POINTS, type AchievementId } from "@/lib/placar/rodada-rules";
 import type { MissionKind } from "@/lib/placar/jogo";
@@ -46,6 +46,7 @@ export const KIND: Record<MissionKind, { label: string; icon: LucideIcon; tone: 
   segurar: { label: "Segurar o verde", icon: Shield, tone: "warn" },
   verde: { label: "Chegar no verde", icon: Target, tone: "good" },
   cinza: { label: "Tirar do cinza", icon: PenLine, tone: "none" },
+  pedido: { label: "Responder o cliente", icon: MessageSquare, tone: "neutral" },
 };
 
 /** Relógio que anda a cada `ms`, para a contagem até o fechamento. */

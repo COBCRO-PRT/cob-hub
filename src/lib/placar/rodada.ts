@@ -17,6 +17,7 @@ import {
   type Mission,
   type SeasonLine,
 } from "./jogo";
+import { currentMonth } from "./pedido-shared";
 import { POINTS, QUARTER_START, SEASON, STREAK, TEAM_GOAL, roundOf, xpOf } from "./rodada-rules";
 import { TIER_RANK, buildLadder, fmtRead, nextText, type ClientLadder } from "./degrau";
 import { addWeeks, fmtScore, metaText, mondayOf, scoreFor, weekLabel } from "./score";
@@ -408,12 +409,13 @@ async function load(store: PlacarStore, week: string) {
 /** A rodada `week` como a tela mostra: congelada se já fechou, prévia se não. */
 export async function semanaSnapshot(store: PlacarStore, week: string): Promise<SemanaSnapshot> {
   let clickupError: string | null = null;
-  const [{ clients, entries, frozen, benchmarks }, tasks] = await Promise.all([
+  const [{ clients, entries, frozen, benchmarks }, tasks, pedidos] = await Promise.all([
     load(store, week),
     syncTasks(store).catch((e: unknown) => {
       clickupError = e instanceof Error ? e.message : String(e);
       return store.listTasks();
     }),
+    store.listPedidos(currentMonth()),
   ]);
   const fixed = frozen.filter((r) => r.week === week);
   const closed = fixed.length > 0;
@@ -445,7 +447,7 @@ export async function semanaSnapshot(store: PlacarStore, week: string): Promise<
 
   const quarterRows = frozen.filter((r) => r.week >= QUARTER_START && r.week <= week);
   const missionsWeek = mondayOf(new Date());
-  const { missions, launch } = weekMissions(clients, entries, frozen, missionsWeek, benchmarks);
+  const { missions, launch } = weekMissions(clients, entries, frozen, missionsWeek, benchmarks, pedidos);
   const owners = [...new Set(clients.filter((c) => c.active).map((c) => c.owner.trim()))];
   return {
     week,

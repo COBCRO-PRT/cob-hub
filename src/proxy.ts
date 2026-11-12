@@ -21,6 +21,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Pedido do cliente (docs/placar-pedido-cliente.md): a página e a gravação abrem sem login;
+  // a chave é o código do link, conferido no handler. A resposta do dono (POST) exige sessão lá dentro.
+  if (pathname.startsWith("/meta/") || pathname === "/api/placar/pedido") {
+    return NextResponse.next();
+  }
+
   // Rotas de máquina, sem login: os crons da Vercel conferem o CRON_SECRET e a rotina
   // mensal das curvas confere o BENCHMARK_TOKEN, cada uma por conta própria.
   if (pathname === "/api/placar/cron" || pathname === "/api/placar/cron/metas" || pathname === "/api/placar/benchmarks") {

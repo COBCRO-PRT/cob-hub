@@ -29,6 +29,7 @@ import type {
   RodadaRow,
   RodadaTone,
   Tier,
+  PlacarPedido,
 } from "./types";
 
 export class PlacarConflictError extends Error {}
@@ -61,6 +62,10 @@ export interface PlacarStore {
   listBenchmarks(): Promise<Benchmark[]>;
   /** Grava a curva inteira (cria ou substitui pelo id). */
   putBenchmark(row: Benchmark): Promise<Benchmark>;
+  /** Pedidos dos clientes com mês a partir de `fromMonth` (AAAA-MM, inclusive). */
+  listPedidos(fromMonth: string): Promise<PlacarPedido[]>;
+  /** Grava o pedido inteiro (cria ou substitui pelo id). */
+  putPedido(row: PlacarPedido): Promise<PlacarPedido>;
 }
 
 // ---------- normalização ----------
@@ -129,6 +134,22 @@ export function normalizeRodada(row: Record<string, unknown>): RodadaRow {
     badges: Array.isArray(row.badges) ? row.badges.map(str) : [],
     tier: oneOf<Tier>(row.tier, ["", "ouro", "prata", "bronze", "abaixo"], ""),
     closed_at: str(row.closed_at) || new Date().toISOString(),
+  };
+}
+
+export function normalizePedido(row: Record<string, unknown>): PlacarPedido {
+  return {
+    id: str(row.id),
+    client: str(row.client),
+    month: str(row.month).slice(0, 7),
+    wanted_value: numOrNull(row.wanted_value),
+    wanted_label: str(row.wanted_label),
+    score: numOrNull(row.score),
+    note: str(row.note),
+    created_at: str(row.created_at) || new Date().toISOString(),
+    answered_at: str(row.answered_at) || null,
+    answer: str(row.answer),
+    accepted: row.accepted === true,
   };
 }
 
@@ -334,6 +355,21 @@ function supabaseStore(url: string, key: string): PlacarStore {
       );
       return normalizeBenchmark(r[0] ?? row);
     },
+
+    async listPedidos(fromMonth) {
+      return rows(await call(`/placar_pedidos?select=*&month=gte.${encodeURIComponent(fromMonth)}&order=created_at.asc`)).map(normalizePedido);
+    },
+
+    async putPedido(row) {
+      const r = rows(
+        await call("/placar_pedidos?on_conflict=id", {
+          method: "POST",
+          body: JSON.stringify(row),
+          prefer: "resolution=merge-duplicates,return=representation",
+        }),
+      );
+      return normalizePedido(r[0] ?? row);
+    },
   };
 }
 
@@ -346,6 +382,7 @@ interface FileData {
   rodada: Record<string, RodadaRow>;
   tasks: Record<string, PlacarTask>;
   benchmarks: Record<string, Benchmark>;
+  pedidos: Record<string, PlacarPedido>;
 }
 
 // Fila de escrita por arquivo, compartilhada entre chamadas do mesmo processo.
@@ -361,10 +398,11 @@ function fileStore(filePath: string): PlacarStore {
         rodada: raw.rodada ?? {},
         tasks: raw.tasks ?? {},
         benchmarks: raw.benchmarks ?? {},
+        pedidos: raw.pedidos ?? {},
       };
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === "ENOENT") {
-        return { clients: {}, entries: {}, rodada: {}, tasks: {}, benchmarks: {} };
+        return { clients: {}, entries: {}, rodada: {}, tasks: {}, benchmarks: {}, pedidos: {} };
       }
       throw e;
     }
@@ -498,6 +536,21 @@ function fileStore(filePath: string): PlacarStore {
     putBenchmark(row) {
       return mutate((d) => {
         d.benchmarks[row.id] = row;
+        return row;
+      });
+    },
+
+    async listPedidos(fromMonth) {
+      const d = await read();
+      return Object.values(d.pedidos)
+        .map((p) => normalizePedido(p as unknown as Record<string, unknown>))
+        .filter((p) => p.month >= fromMonth)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+    },
+
+    putPedido(row) {
+      return mutate((d) => {
+        d.pedidos[row.id] = row;
         return row;
       });
     },

@@ -11,6 +11,7 @@
 import { cookies } from "next/headers";
 import { FINANCE_COOKIE_NAME, financeToken } from "@/lib/gate-financeiro";
 import { USER_COOKIE_NAME, readSession } from "@/lib/gate-pessoa";
+import { currentMonth, pedidoCode, pedidoPath } from "./pedido";
 import { addWeeks, entryId, isMonday, isNum, lastClosedWeek, slug } from "./score";
 import { getStore, PlacarConflictError } from "./store";
 import type { Audience, BoardClient, PlacarClient, PlacarEntry, PlacarSnapshot } from "./types";
@@ -156,15 +157,24 @@ export function placarHandlers(audience: Audience) {
     const from = new URL(request.url).searchParams.get("from") ?? addWeeks(lastClosedWeek(), -12);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) throw new InputError("Parâmetro from inválido.");
     const store = await getStore();
-    const [clients, entries, benchmarks] = await Promise.all([
+    const [clients, entries, benchmarks, pedidos] = await Promise.all([
       store.listClients(),
       store.listEntries(from),
       store.listBenchmarks(),
+      store.listPedidos(currentMonth()),
     ]);
+    const links: Record<string, string> = {};
+    for (const c of clients) {
+      if (!c.active) continue;
+      const code = await pedidoCode(c.id);
+      if (code) links[c.id] = pedidoPath(c.id, code);
+    }
     const body: PlacarSnapshot = {
       clients: clients.map((c) => forAudience(c, audience)),
       entries,
       benchmarks,
+      pedidos,
+      links,
       store: store.kind,
     };
     return json({ ok: true, ...body });

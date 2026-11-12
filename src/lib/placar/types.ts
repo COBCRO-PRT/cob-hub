@@ -102,10 +102,35 @@ export interface PlacarEntry {
 
 export type Audience = "team" | "finance";
 
+/** O que o cliente pediu de resultado para um mês (tabela placar_pedidos, docs/placar-pedido-cliente.md). */
+export interface PlacarPedido {
+  /** `<client>_<AAAA-MM>`, um pedido por cliente por mês. */
+  id: string;
+  client: string;
+  /** Mês pedido, AAAA-MM. */
+  month: string;
+  wanted_value: number | null;
+  wanted_label: string;
+  /** Nota de 0 a 10 que o cliente deu ao mês anterior. */
+  score: number | null;
+  note: string;
+  created_at: string;
+  /** Quando o dono respondeu (aceitou ou manteve a régua). */
+  answered_at: string | null;
+  /** O que o dono respondeu ao cliente quando manteve a régua. */
+  answer: string;
+  /** O pedido virou a meta. */
+  accepted: boolean;
+}
+
 export interface PlacarSnapshot {
   clients: BoardClient[];
   entries: PlacarEntry[];
   benchmarks: Benchmark[];
+  /** Pedidos do mês corrente em diante. */
+  pedidos: PlacarPedido[];
+  /** Caminho do formulário de cada cliente ativo (`/meta/<id>/<código>`), para o dono copiar. */
+  links: Record<string, string>;
   /** Onde os dados moram. "file" aparece como aviso na tela, para ninguém lançar no lugar errado. */
   store: "supabase" | "file";
 }

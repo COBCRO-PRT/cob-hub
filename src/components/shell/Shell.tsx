@@ -17,7 +17,8 @@ import { cn } from "@/lib/utils";
 export type HudPessoa = { name: string; role: "admin" | "time" } | null;
 
 /** Telas de login ficam sem casca: ali ainda não há para onde ir. */
-const SEM_CASCA = ["/entrar", "/placar/entrar", "/financeiro/entrar"];
+// /meta é a página do cliente (docs/placar-pedido-cliente.md): ele nunca vê o hub.
+const SEM_CASCA = ["/entrar", "/placar/entrar", "/financeiro/entrar", "/meta/"];
 
 const typing = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));

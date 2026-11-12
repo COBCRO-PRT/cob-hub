@@ -7,7 +7,8 @@
 import { POINTS, STREAK, levelFor, roundOf, xpOf, type AchievementId, type Level } from "./rodada-rules";
 import { buildLadder, nextText } from "./degrau";
 import { addWeeks, isNum, metaWeek, scoreFor } from "./score";
-import type { Benchmark, PlacarClient, PlacarEntry, PlacarTask, RodadaRow, RodadaTone, Tier } from "./types";
+import { monthLabel } from "./pedido-shared";
+import type { Benchmark, PlacarClient, PlacarEntry, PlacarPedido, PlacarTask, RodadaRow, RodadaTone, Tier } from "./types";
 
 /** Até onde olhar para trás para contar sequência. */
 export const LOOKBACK = 52;
@@ -163,7 +164,7 @@ export function seasonTable(frozen: RodadaRow[], tasks: PlacarTask[], owners: st
 
 // ---------- missões ----------
 
-export type MissionKind = "virada" | "selo" | "verde" | "segurar" | "cinza";
+export type MissionKind = "virada" | "selo" | "verde" | "segurar" | "cinza" | "pedido";
 
 export interface Mission {
   client: string;
@@ -284,6 +285,7 @@ export function weekMissions(
   frozen: RodadaRow[],
   week: string,
   benchmarks: Benchmark[] = [],
+  pedidos: PlacarPedido[] = [],
 ): { missions: Mission[]; launch: LaunchLine[] } {
   const toneAt = toneGetter(entries, frozen);
   const lists = byClient(entries);
@@ -360,7 +362,29 @@ export function weekMissions(
     missions.push({ client: c.id, name: c.name, owner, kind, points, todo, blocked, done, tone, score: s.final, degrau });
   }
 
-  const order: Record<MissionKind, number> = { virada: 0, selo: 1, segurar: 2, verde: 3, cinza: 4 };
+  // Pedido do cliente sem resposta do dono (docs/placar-pedido-cliente.md): missão à parte, vale a leitura.
+  for (const p of pedidos) {
+    if (p.answered_at) continue;
+    const c = clients.find((x) => x.id === p.client && x.active);
+    if (!c) continue;
+    const s = scoreFor(c, week, lists.get(c.id) ?? []);
+    const wanted = p.wanted_value === null ? "" : `${nf.format(p.wanted_value)} ${p.wanted_label} `;
+    missions.push({
+      client: c.id,
+      name: c.name,
+      owner: c.owner.trim(),
+      kind: "pedido",
+      points: POINTS.leitura,
+      todo: `Responder ao cliente: pediu ${wanted}para ${monthLabel(p.month)}${p.score !== null ? `, nota ${nf.format(p.score)}` : ""}`,
+      blocked: false,
+      done: false,
+      tone: s.tone,
+      score: s.final,
+      degrau: null,
+    });
+  }
+
+  const order: Record<MissionKind, number> = { virada: 0, selo: 1, segurar: 2, verde: 3, cinza: 4, pedido: 5 };
   missions.sort((a, b) => Number(a.done) - Number(b.done) || order[a.kind] - order[b.kind] || a.name.localeCompare(b.name, "pt-BR"));
   return { missions, launch: [...launch.values()].sort((a, b) => a.owner.localeCompare(b.owner, "pt-BR")) };
 }
