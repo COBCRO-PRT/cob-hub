@@ -8,8 +8,9 @@ Hoje a meta nasce da régua da COB (docs/placar-benchmark.md) e o cliente não p
 cliente dizia na reunião, sem controle. Aqui o cliente diz o que quer, por escrito, uma vez por mês, e o dono responde
 com a conta na mão. A nota do cliente, que ninguém pedia, vem junto.
 
-O pedido **não vira meta sozinho**. A meta continua sendo a da régua, controlável pela equipe. O dono aceita o pedido
-ou responde o que seria preciso para chegar lá (verba, custo). Essa resposta é a conversa de meta que não acontecia.
+O pedido **não vira meta**. A meta continua sendo a da régua por setor, controlável pela equipe. O dono ajusta a
+verba, e o sistema recalcula a meta pela régua, ou responde o que seria preciso para chegar lá. Essa resposta é a
+conversa de meta que não acontecia.
 
 ## O link
 
@@ -46,12 +47,16 @@ Celular primeiro: o cliente abre pelo WhatsApp. Uma tela, três perguntas, um mi
 - A nota vira o lançamento de **nota do cliente** da última semana fechada: o campo `client_score` entra no lançamento
   da semana, mantendo o número que já estava lá. É a nota que segura a nota do Placar e que o setor Social exige.
 - Ficha do cliente, bloco "Pedido para dezembro": "350 contatos · nota 8 · 'promoção de Natal'", a meta da régua ao
-  lado, e dois botões:
-  - **Aceitar como meta**: `meta_value` = pedido, `meta_auto` desligado, `meta_review` falso, nota de meta
-    "Pedido do cliente aceito em 12/11". Marca `accepted` e `answered_at`.
+  lado e a **verba que a régua pediria** para o número do cliente (pedido × custo-alvo do degrau mirado; venda: pedido
+  ÷ retorno-alvo), arredondada para cima de 10 em 10. Dois caminhos:
+  - **Ajustar a verba e recalcular**: a verba da ficha muda, `meta_auto` liga e a meta é recalculada na hora pela
+    régua (`autoMetaNow`). Marca `accepted` e grava em `answer` "Verba ajustada para R$ X. Meta pela régua: N".
   - **Manter a régua e responder**: campo de texto com a resposta que o dono vai mandar ao cliente ("Para 350
     contatos ao custo de hoje precisa de R$ 4.000 de verba"). Grava `answer` e `answered_at`. O envio ao cliente é
     pelo WhatsApp, à mão.
+- **O pedido nunca vira meta** (Matheus, 12/11: "manter o padrão de metas que puxamos, por setor, playbook, e quero que
+  o sistema calcule pela regra"). A meta é sempre a da régua do setor (docs/placar-benchmark.md); o único botão do dono
+  é a verba. Cliente fora da régua (sem setor, tipo ou leitura) só tem o caminho da resposta em texto.
 - Rodada: cliente com pedido do mês sem `answered_at` ganha a missão **Responder o cliente** (+1), que fecha quando o
   dono responde. Vale o mesmo que a leitura: é trabalho de gestão, não de resultado.
 - Pedido não respondido até o dia 1: continua na ficha e na missão até ser respondido. Não some.

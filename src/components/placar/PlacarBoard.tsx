@@ -1064,7 +1064,7 @@ function ScoreSheet({
           </dl>
           <Trail tones={row.trail.map((x) => x.tone)} scores={row.trail.map((x) => x.final)} size="md" />
           {row.ladder && <LadderSheet c={row.c} l={row.ladder} plat={row.plat} />}
-          {row.c.active && <PedidoBlock client={row.c} pedido={pedido} link={link} onSaved={onSaved} />}
+          {row.c.active && <PedidoBlock client={row.c} ladder={row.ladder} pedido={pedido} link={link} onSaved={onSaved} />}
         </div>
       )}
     </Modal>

@@ -10,6 +10,7 @@ import { cookies } from "next/headers";
 import { USER_COOKIE_NAME, readSession } from "@/lib/gate-pessoa";
 import { nextMonth, pedidoCode, pedidoId, unitOf } from "./pedido";
 import { entryId, lastClosedWeek } from "./score";
+import { autoMetaNow } from "./metas";
 import { getStore } from "./store";
 import type { PlacarEntry, PlacarPedido } from "./types";
 
@@ -31,6 +32,8 @@ const num = (v: unknown) => {
   const n = typeof v === "number" ? v : Number(String(v).replace(/\./g, "").replace(",", "."));
   return Number.isFinite(n) ? n : NaN;
 };
+
+const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
@@ -97,16 +100,21 @@ export async function pedidoPut(request: Request) {
   return json({ ok: true, month, owner: c.owner });
 }
 
-/** POST { id, accepted, answer }: o dono responde. */
+/**
+ * POST { id, budget?, answer? }: o dono responde. Com `budget`, a verba da ficha muda e a meta é
+ * recalculada na hora pela régua (o pedido nunca vira meta). Sem `budget`, a régua fica e `answer`
+ * é o que o dono vai dizer ao cliente.
+ */
 export async function pedidoPost(request: Request) {
   const who = await readSession((await cookies()).get(USER_COOKIE_NAME)?.value);
   if (!who) return fail(401, "Sessão expirada. Recarregue a página e entre de novo.");
   const b = await body(request);
   const id = text(b.id, 120);
-  const accepted = b.accepted === true;
+  const budget = num(b.budget);
   const answer = text(b.answer, 500);
   if (!id) return fail(400, "Falta o pedido.");
-  if (!accepted && !answer) return fail(400, "Escreva o que você vai responder ao cliente.");
+  if (budget !== null && (Number.isNaN(budget) || budget <= 0)) return fail(400, "A verba precisa ser um número maior que zero.");
+  if (budget === null && !answer) return fail(400, "Escreva o que você vai responder ao cliente.");
 
   const store = await getStore();
   const pedido = (await store.listPedidos("2000-01")).find((p) => p.id === id);
@@ -115,19 +123,15 @@ export async function pedidoPost(request: Request) {
   if (!c) return fail(404, "Cliente não encontrado.");
 
   const now = new Date().toISOString();
-  const stamp = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
   try {
-    if (accepted && pedido.wanted_value !== null) {
-      await store.updateClient(c.id, {
-        meta_value: pedido.wanted_value,
-        meta_period: "mes",
-        meta_auto: false,
-        meta_review: false,
-        meta_note: `Pedido do cliente aceito como meta em ${stamp}`,
-        updated_at: now,
-      });
+    let text_ = answer;
+    if (budget !== null) {
+      await store.updateClient(c.id, { budget, meta_auto: true, updated_at: now });
+      const m = await autoMetaNow(store, c.id);
+      if (!m) return fail(400, "Esse cliente não entra na régua (sem setor, tipo de resultado ou leitura). Responda ao cliente em texto.");
+      text_ = `Verba ajustada para R$ ${nf.format(budget)}. Meta pela régua: ${nf.format(m.to)} ${c.meta_label || ""}`.trim();
     }
-    const saved = await store.putPedido({ ...pedido, accepted, answer: accepted ? "" : answer, answered_at: now });
+    const saved = await store.putPedido({ ...pedido, accepted: budget !== null, answer: text_, answered_at: now });
     return json({ ok: true, pedido: saved });
   } catch (e) {
     console.error("[placar/pedido]", e);

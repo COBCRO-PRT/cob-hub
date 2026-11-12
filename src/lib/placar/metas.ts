@@ -89,14 +89,39 @@ export async function refreshAutoMetas(store: PlacarStore, dry = false): Promise
     }
     changed.push(m);
     if (dry) continue;
-    await store.updateClient(c.id, {
-      meta_value: m.to,
-      meta_period: "mes",
-      meta_mode: c.result_kind === "venda" && c.meta_mode === "taxa" ? "taxa" : "soma",
-      meta_note: `${m.note}, ${stamp}`,
-      meta_review: false,
-      updated_at: new Date().toISOString(),
-    });
+    await writeMeta(store, c, m, stamp);
   }
   return { week, changed, skipped };
+}
+
+async function writeMeta(store: PlacarStore, c: PlacarClient, m: MetaChange, stamp: string) {
+  await store.updateClient(c.id, {
+    meta_value: m.to,
+    meta_period: "mes",
+    meta_mode: c.result_kind === "venda" && c.meta_mode === "taxa" ? "taxa" : "soma",
+    meta_note: `${m.note}, ${stamp}`,
+    meta_review: false,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+/**
+ * Recalcula agora a meta de um cliente pela régua, com a verba que está na ficha.
+ * É o que roda quando o dono ajusta a verba a partir do pedido do cliente
+ * (docs/placar-pedido-cliente.md): o pedido não vira meta, a verba é o botão.
+ */
+export async function autoMetaNow(store: PlacarStore, clientId: string): Promise<MetaChange | null> {
+  const week = lastClosedWeek();
+  const [clients, entries, benchmarks] = await Promise.all([
+    store.listClients(),
+    store.listEntries(addWeeks(week, -16)),
+    store.listBenchmarks(),
+  ]);
+  const c = clients.find((x) => x.id === clientId);
+  if (!c) return null;
+  const ladder = buildLadder(clients, byClient(entries), benchmarks, week);
+  const m = autoMetaFor(c, ladder.get(c.id));
+  if (!m) return null;
+  await writeMeta(store, c, m, new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }));
+  return m;
 }
