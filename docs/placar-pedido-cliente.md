@@ -25,18 +25,24 @@ conversa de meta que não acontecia.
 
 ## A página do cliente
 
-Celular primeiro: o cliente abre pelo WhatsApp. Uma tela, três perguntas, um minuto.
+Celular primeiro: o cliente abre pelo WhatsApp. Uma tela, três perguntas numeradas, um minuto. Layout de 12/11
+("vamos melhorar esse layout"): logo e o mês num chip no topo, nome do cliente em legenda, título em `type-display`
+sem o ano, a referência numa faixa própria (rótulo à esquerda, número em `metric-sm` à direita), perguntas em frase
+com índice apagado (não em rótulo maiúsculo), campo do número com "R$" como prefixo e a unidade como sufixo, nota
+de 0 a 10 em botões (uma linha no computador, duas no celular, 44px de altura, "ruim" e "ótimo" nas pontas),
+texto livre em 3 linhas e o botão "Mandar para a COB" com "Leva um minuto. <Dono> responde até o dia 1." embaixo.
 
 - Cabeçalho: "COB" e o nome do cliente. Título: "O que você quer de resultado em dezembro?" (mês seguinte ao atual).
 - Referência neutra, sem a meta da COB: "Nas últimas 4 semanas foram 288 contatos." É a mesma conta da nota
   (janela de 4 semanas até a última rodada fechada), na unidade da ficha; em reais, "R$ 794 em vendas". Sem leitura:
-  "Ainda não temos um período fechado de leitura para mostrar aqui."
+  "ainda sem período fechado". Leitura zero conta como sem leitura: "R$ 0 em vendas" não aparece.
 - Pergunta 1, obrigatória: "Que resultado você quer em dezembro?" Número e a unidade da ficha (`meta_label`:
   "contatos", "R$ em vendas", "candidatos"). Sem unidade na ficha: "resultados".
 - Pergunta 2, obrigatória: "De 0 a 10, como foi o mês que passou com a COB?"
 - Pergunta 3, opcional, até 500 caracteres: "O que muda no seu negócio no mês que vem?" (promoção, estoque, férias,
   lançamento).
-- Enviar: "Recebido. <Dono> responde até o dia 1." Mandar de novo no mesmo mês substitui a resposta anterior.
+- Mandar: "Recebido." em `type-display` e "<Dono> responde até o dia 1. Se mudar de ideia, abra este link de novo e
+  mande outro número." Mandar de novo no mesmo mês substitui a resposta anterior.
 - Copy passa pela régua anti-IA antes de publicar.
 
 ## O que acontece com a resposta

@@ -15,7 +15,8 @@ export type FieldProps = {
 } & Omit<React.AllHTMLAttributes<HTMLElement>, "label" | "as" | "children" | "className" | "id">;
 
 /** 16px no celular para o iPhone não dar zoom ao focar (§5). */
-const CONTROL =
+/** Classe do controle, exportada para formulários que escrevem o próprio rótulo (página do cliente). */
+export const CONTROL =
   "w-full rounded-sm border border-line bg-surface-2 px-3 py-2 text-base text-fg shadow-relief outline-none motion-safe:transition-colors placeholder:text-dim hover:border-line-strong focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:opacity-50 sm:text-sm aria-invalid:border-bad aria-invalid:focus:ring-bad/12";
 
 export function Field({ id, label, hint, error, as = "input", className, children, ...props }: FieldProps) {

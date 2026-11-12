@@ -12,8 +12,6 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
-
 function Invalid() {
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center bg-bg px-4 py-8 sm:px-6">
@@ -40,9 +38,6 @@ export default async function MetaDoCliente({ params }: { params: Promise<{ clie
   const [entries, pedidos] = await Promise.all([store.listEntries(addWeeks(lastClosedWeek(), -8)), store.listPedidos(currentMonth())]);
   const ref = referenceFor(c, entries);
   const unit = unitOf(c);
-  // "R$ 794 em vendas", não "794 R$ em vendas".
-  const amount = unit.startsWith("R$ ") ? `R$ ${nf.format(ref?.value ?? 0)} ${unit.slice(3)}` : `${nf.format(ref?.value ?? 0)} ${unit}`;
-  const reference = ref ? `${ref.weeks === 1 ? "Na última semana foi" : `Nas últimas ${ref.weeks} semanas foram`} ${amount}.` : null;
   const prev = pedidoOf(pedidos, c.id, month);
 
   return (
@@ -53,7 +48,7 @@ export default async function MetaDoCliente({ params }: { params: Promise<{ clie
       owner={c.owner}
       month={monthLabel(month)}
       unit={unit}
-      reference={reference}
+      reference={ref && ref.value > 0 ? { value: ref.value, weeks: ref.weeks } : null}
       previous={prev && prev.wanted_value !== null && prev.score !== null ? { wanted: prev.wanted_value, score: prev.score, note: prev.note } : null}
     />
   );
