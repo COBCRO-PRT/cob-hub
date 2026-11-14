@@ -10,7 +10,7 @@ import { TIER_LABEL } from "@/lib/placar/degrau";
 import { weekLabel } from "@/lib/placar/score";
 import { Podium } from "./Temporada";
 
-const COLORS = ["#00e5ff", "#34d399", "#fcd34d", "#ffffff", "#7ff2ff"]; // ds-allow: o confete tem cor própria (§4)
+const COLORS = ["#0055fe", "#34d399", "#fcd34d", "#ffffff", "#6aa0ff"]; // ds-allow: o confete tem cor própria (§4)
 
 /** Chuva de confete. `seed` muda para disparar de novo. Some sozinha e não roda com "reduzir movimento". */
 export function Confetti({ seed, pieces = 90 }: { seed: number; pieces?: number }) {

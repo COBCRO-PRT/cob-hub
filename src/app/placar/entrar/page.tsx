@@ -5,7 +5,7 @@ import { USER_COOKIE_MAX_AGE, USER_COOKIE_NAME, checkLogin, createSession, login
 import { LoginCard } from "@/components/LoginCard";
 
 export const metadata = {
-  title: "Entrar no Placar · COB Hub",
+  title: "Entrar no Placar · Colombo Media Hub",
   robots: { index: false, follow: false },
 };
 

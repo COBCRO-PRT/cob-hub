@@ -1,7 +1,7 @@
 import { PlacarBoard } from "@/components/placar/PlacarBoard";
 
 export const metadata = {
-  title: "Placar de Clientes, financeiro · COB Hub",
+  title: "Placar de Clientes, financeiro · Colombo Media Hub",
   robots: { index: false, follow: false },
 };
 

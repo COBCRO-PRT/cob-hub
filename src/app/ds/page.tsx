@@ -3,7 +3,7 @@ import { ArrowUpRight, Play, Plus, Search } from "lucide-react";
 import { Button, CONTAINER, Field, Kbd, Label, Pill, SectionTitle, Surface } from "@/components/ui";
 import { Demo } from "./Demo";
 
-export const metadata: Metadata = { title: "Design system · COB Hub" };
+export const metadata: Metadata = { title: "Design system · Colombo Media Hub" };
 
 /** Styleguide vivo: todos os primitivos em todas as variantes. Só para quem constrói. */
 export default function DsPage() {

@@ -18,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "COB Hub · uso interno",
+  title: "Colombo Media Hub · uso interno",
   description:
-    "Catálogo interno de sites, ferramentas e materiais do time COB.",
+    "Catálogo interno de sites, ferramentas e materiais do time Colombo Media.",
   // O hub mapeia todos os acessos internos, então fica fora de busca.
   robots: { index: false, follow: false },
 };

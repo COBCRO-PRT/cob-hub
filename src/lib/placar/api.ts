@@ -85,7 +85,7 @@ function parseClientPatch(b: Record<string, unknown>, audience: Audience): Clien
   }
   if ("owner" in b) p.owner = text(b.owner, 60, "Dono");
   if ("owner_ok" in b) p.owner_ok = bool(b.owner_ok, "Dono confirmado");
-  if ("delivers" in b) p.delivers = text(b.delivers, 200, "O que a COB entrega");
+  if ("delivers" in b) p.delivers = text(b.delivers, 200, "O que a Colombo Media entrega");
   if ("kind" in b) p.kind = pick(b.kind, ["resultado", "projeto"] as const, "Tipo");
   if ("meta_value" in b) p.meta_value = numOrNull(b.meta_value, "Meta", (n) => n > 0);
   if ("meta_label" in b) p.meta_label = text(b.meta_label, 60, "Do quê");

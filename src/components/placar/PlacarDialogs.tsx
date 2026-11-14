@@ -359,7 +359,7 @@ function ClientForm({
         <Check id="c-owner-ok" checked={ownerOk} onChange={setOwnerOk}>
           Dono confirmado na reunião
         </Check>
-        <Field id="c-delivers" label="O que a COB entrega" type="text" autoComplete="off" value={delivers} onChange={text(setDelivers)} />
+        <Field id="c-delivers" label="O que a Colombo Media entrega" type="text" autoComplete="off" value={delivers} onChange={text(setDelivers)} />
         <Field id="c-kind" label="Tipo" as="select" value={kind} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setKind(e.target.value as ClientKind)}>
           <option value="resultado">Recorrente, nota pelo resultado</option>
           <option value="projeto">Projeto, nota pelo marco no prazo</option>

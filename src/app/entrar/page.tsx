@@ -4,7 +4,7 @@ import { COOKIE_NAME, COOKIE_MAX_AGE, safeNext, sessionToken } from "@/lib/gate"
 import { LoginCard } from "@/components/LoginCard";
 
 export const metadata = {
-  title: "Entrar · COB Hub",
+  title: "Entrar · Colombo Media Hub",
   robots: { index: false, follow: false },
 };
 

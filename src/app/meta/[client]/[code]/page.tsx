@@ -6,7 +6,7 @@ import { addWeeks, lastClosedWeek } from "@/lib/placar/score";
 import { getStore } from "@/lib/placar/store";
 
 export const metadata = {
-  title: "Seu resultado do mês · COB",
+  title: "Seu resultado do mês · Colombo Media",
   robots: { index: false, follow: false },
 };
 
@@ -18,7 +18,7 @@ function Invalid() {
       <Surface light className="relative w-full max-w-[440px] p-6 sm:p-8">
         <Logo className="h-5" />
         <h1 className="type-title mt-6 text-fg">Esse link não vale mais.</h1>
-        <p className="type-body mt-2 text-mute">Fale com a COB e peça um link novo.</p>
+        <p className="type-body mt-2 text-mute">Fale com a Colombo Media e peça um link novo.</p>
       </Surface>
     </main>
   );

@@ -58,7 +58,7 @@ export const SHELVES: Shelf[] = [
       },
       {
         id: "intelligence",
-        name: "CO-B Intelligence",
+        name: "Colombo Media Intelligence",
         what: "Cada cliente com cronograma e inteligência. A Visão e as Aprovações estão na mesma lateral.",
         url: "https://aprovar.srv1807772.hstgr.cloud/ci/",
         host: "aprovar / ci",
@@ -132,7 +132,7 @@ export const SECUNDARIOS: Shortcut[] = [
   },
   {
     id: "manual",
-    name: "Como a COB opera",
+    name: "Como a Colombo Media opera",
     what: "O manual do processo: quem faz, onde faz e como faz.",
     url: "https://claude.ai/code/artifact/e301c9b7-b7b8-44e3-8a32-51eead460d76",
     host: "claude.ai",
@@ -140,7 +140,7 @@ export const SECUNDARIOS: Shortcut[] = [
   },
   {
     id: "design-system",
-    name: "Design System COB",
+    name: "Design System Colombo Media",
     what: "Tokens, cores e tipografia da marca.",
     url: "https://github.com/COBCRO-PRT/cob-hub/blob/main/docs/Design_System_COB.md",
     host: "github.com",
@@ -148,7 +148,7 @@ export const SECUNDARIOS: Shortcut[] = [
   },
   {
     id: "site-cob",
-    name: "Site da COB",
+    name: "Site da Colombo Media",
     what: "A vitrine externa e a página que captura lead.",
     url: "https://cob-site.vercel.app",
     host: "cob-site",

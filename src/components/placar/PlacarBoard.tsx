@@ -336,7 +336,7 @@ export function PlacarBoard({ audience, apiBase }: { audience: Audience; apiBase
       <div className={`${CONTAINER} flex flex-col gap-6`}>
 
         <PageHeader
-          eyebrow={`COB · gestão por resultado${finance ? " · visão do financeiro" : ""}`}
+          eyebrow={`Colombo Media · gestão por resultado${finance ? " · visão do financeiro" : ""}`}
           title="Placar de Clientes"
           week={{
             ariaLabel: "Semana do placar",
@@ -1087,11 +1087,11 @@ function marksOf(l: ClientLadder): LadderMark[] {
     if (isNum(m.p25)) out.push({ at: m.p25, label: metric === "custo" ? "Ouro p25" : "p25", text: f(m.p25) });
     if (isNum(m.p50)) out.push({ at: m.p50, label: "Prata p50", text: f(m.p50) });
     if (isNum(m.p75)) out.push({ at: m.p75, label: metric === "custo" ? "p75" : "Ouro p75", text: f(m.p75) });
-    if (bronze) out.push({ at: bronze.limit, label: l.cob ? "Bronze COB" : "Bronze", text: f(bronze.limit) });
+    if (bronze) out.push({ at: bronze.limit, label: l.cob ? "Bronze da carteira" : "Bronze", text: f(bronze.limit) });
   } else if (l.cob) {
-    for (const st of l.steps) out.push({ at: st.limit, label: `${TIER_LABEL[st.tier]} COB`, text: f(st.limit) });
+    for (const st of l.steps) out.push({ at: st.limit, label: `${TIER_LABEL[st.tier]} da carteira`, text: f(st.limit) });
     const top = metric === "custo" ? l.cob.p75 : l.cob.p25;
-    if (isNum(top)) out.push({ at: top, label: metric === "custo" ? "p75 COB" : "p25 COB", text: f(top) });
+    if (isNum(top)) out.push({ at: top, label: metric === "custo" ? "p75 da carteira" : "p25 da carteira", text: f(top) });
   }
   return out;
 }
@@ -1110,7 +1110,7 @@ function LadderSheet({ c, l, plat }: { c: BoardClient; l: ClientLadder; plat: Pl
           <span className="type-caption text-dim">{group}</span>
         </div>
         <span className="flex items-center gap-1.5">
-          {l.cobScope === "geral" && <Pill className="h-5 px-1.5 font-medium">COB geral</Pill>}
+          {l.cobScope === "geral" && <Pill className="h-5 px-1.5 font-medium">Carteira geral</Pill>}
           <TierChip tier={l.tier} />
         </span>
       </div>
@@ -1124,7 +1124,7 @@ function LadderSheet({ c, l, plat }: { c: BoardClient; l: ClientLadder; plat: Pl
           label={`Régua do mercado: ${marks.map((m) => `${m.label} ${m.text}`).join(", ")}; ${c.name} em ${l.read ? fmtRead(metric, l.read.value) : "sem leitura"}`}
         />
       ) : (
-        <p className="type-body text-mute">Sem curva para este grupo ainda. O degrau fica a medir até existir leitura de mercado ou de 3 clientes da COB.</p>
+        <p className="type-body text-mute">Sem curva para este grupo ainda. O degrau fica a medir até existir leitura de mercado ou de 3 clientes da Colombo Media.</p>
       )}
       <p className="type-body text-fg">
         {next
@@ -1144,7 +1144,7 @@ function LadderSheet({ c, l, plat }: { c: BoardClient; l: ClientLadder; plat: Pl
                 <span className="type-body font-semibold tabular-nums text-fg">
                   {p.read.value === null ? "gasto sem resultado" : metric === "custo" ? `${fmtRead("custo", p.read.value)} por ${KIND_LABEL[c.result_kind]}` : `${fmtRead("roas", p.read.value)} de retorno`}
                 </span>
-                {p.curve && isNum(p.curve.p50) && <span className="type-caption tabular-nums text-dim">COB p50 {fmtRead(metric, p.curve.p50)}</span>}
+                {p.curve && isNum(p.curve.p50) && <span className="type-caption tabular-nums text-dim">Carteira p50 {fmtRead(metric, p.curve.p50)}</span>}
               </dd>
             </div>
           ))}
@@ -1153,8 +1153,8 @@ function LadderSheet({ c, l, plat }: { c: BoardClient; l: ClientLadder; plat: Pl
       <p className="type-caption text-dim">
         {l.market
           ? `Mercado: ${l.market.source}${l.market.captured_at ? `, lido em ${fmtDate(l.market.captured_at)}` : ""}.`
-          : "Sem coorte de mercado para este grupo; a régua é a carteira COB."}
-        {plat.some((p) => p.platform === "google") ? " O Google não tem coorte de mercado; a referência dele é só a COB." : ""}
+          : "Sem coorte de mercado para este grupo; a régua é a carteira Colombo Media."}
+        {plat.some((p) => p.platform === "google") ? " O Google não tem coorte de mercado; a referência dele é só a Colombo Media." : ""}
       </p>
     </section>
   );

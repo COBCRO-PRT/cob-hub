@@ -10,7 +10,7 @@ import {
 } from "@/lib/gate-financeiro";
 
 export const metadata = {
-  title: "Financeiro · COB Hub",
+  title: "Financeiro · Colombo Media Hub",
   robots: { index: false, follow: false },
 };
 

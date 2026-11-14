@@ -199,7 +199,7 @@ export function SemanaBoard({ who, admin = false }: { who?: string; admin?: bool
       <div className={`${CONTAINER} flex flex-col gap-6`}>
         <div className="flex flex-col gap-5">
           <PageHeader
-            eyebrow="COB · gestão por resultado"
+            eyebrow="Colombo Media · gestão por resultado"
             title="Rodada da semana"
             week={{
               ariaLabel: "Semana da rodada",

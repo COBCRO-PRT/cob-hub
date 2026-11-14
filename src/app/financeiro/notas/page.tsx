@@ -18,7 +18,7 @@ import { Kpi } from "./Kpi";
 import { SubmitButton } from "./SubmitButton";
 
 export const metadata = {
-  title: "Notas do mês · COB Hub",
+  title: "Notas do mês · Colombo Media Hub",
   robots: { index: false, follow: false },
 };
 
@@ -252,7 +252,7 @@ export default async function Notas({
     <div className="min-h-screen bg-bg">
       <div className={cn(CONTAINER, "flex flex-col gap-7 pb-44")}>
         <PageHeader
-          eyebrow="COB · financeiro"
+          eyebrow="Colombo Media · financeiro"
           title={`Notas de ${rotuloDaCompetencia(competencia)}`}
           actions={
             <form className="flex items-end gap-2">

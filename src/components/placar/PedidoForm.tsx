@@ -51,7 +51,7 @@ export function PedidoForm({
 
   const monthName = month.split(" de ")[0];
   const { prefix, suffix } = splitUnit(unit);
-  const who = owner || "A COB";
+  const who = owner || "A Colombo Media";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -119,7 +119,7 @@ export function PedidoForm({
                 </div>
               </Question>
 
-              <Question n={2} id="score-0" text="De 0 a 10, como foi o mês que passou com a COB?">
+              <Question n={2} id="score-0" text="De 0 a 10, como foi o mês que passou com a Colombo Media?">
                 <div role="radiogroup" aria-label="Nota de 0 a 10" className="grid grid-cols-6 gap-1.5 sm:grid-cols-11 sm:gap-1">
                   {SCORES.map((n) => {
                     const on = score === n;
@@ -162,7 +162,7 @@ export function PedidoForm({
 
               <div className="flex flex-col gap-3">
                 <Button type="submit" variant="primary" size="lg" pending={pending} className="w-full">
-                  Mandar para a COB
+                  Mandar para a Colombo Media
                 </Button>
                 <p className="text-center type-caption text-dim">Leva um minuto. {who} responde até o dia 1.</p>
               </div>

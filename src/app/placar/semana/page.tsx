@@ -3,7 +3,7 @@ import { SemanaBoard } from "@/components/placar/SemanaBoard";
 import { USER_COOKIE_NAME, readSession } from "@/lib/gate-pessoa";
 
 export const metadata = {
-  title: "Rodada da semana · COB Hub",
+  title: "Rodada da semana · Colombo Media Hub",
   robots: { index: false, follow: false },
 };
 

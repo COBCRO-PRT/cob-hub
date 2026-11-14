@@ -44,11 +44,11 @@ export async function pedidoPut(request: Request) {
   const code = text(b.code, 20);
   if (!client || !code) return fail(400, "Link incompleto.");
   const expected = await pedidoCode(client);
-  if (!expected || expected !== code) return fail(404, "Esse link não vale mais. Fale com a COB.");
+  if (!expected || expected !== code) return fail(404, "Esse link não vale mais. Fale com a Colombo Media.");
 
   const store = await getStore();
   const c = await store.getClient(client);
-  if (!c || !c.active) return fail(404, "Esse link não vale mais. Fale com a COB.");
+  if (!c || !c.active) return fail(404, "Esse link não vale mais. Fale com a Colombo Media.");
 
   const wanted = num(b.wanted_value);
   if (wanted === null || Number.isNaN(wanted) || wanted < 0) return fail(400, "Diga o resultado que você quer, em número.");
